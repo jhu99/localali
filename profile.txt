@@ -1,0 +1,11 @@
+#network ./dataset/dip/3-way/input_int-0.txt
+#network ./dataset/dip/3-way/input_int-1.txt
+#network ./dataset/dip/3-way/input_int-2.txt
+#layers  ./dataset/dip/3-way/input_blast.txt
+network ./dataset/dip/test/test1.txt
+network ./dataset/dip/test/test2.txt
+network ./dataset/dip/test/test3.txt
+network ./dataset/dip/test/test4.txt
+network ./dataset/dip/test/test5.txt
+layers  ./dataset/dip/test/test_blast.txt
+
