@@ -8,6 +8,7 @@ Date: 18.06.2012*/
 #include <vector>
 #include <lemon/core.h>
 #include <lemon/bits/graph_extender.h>
+#include <lemon/connectivity.h>
 #include <unordered_map>
 #include "verbose.h"
 #include <assert.h>
@@ -73,6 +74,8 @@ public:
   GraphData* getGraph(int);
   unsigned getHost(std::string);
   bool existNode(std::string);
+  bool subnetworkConnection(std::vector<std::string>&,unsigned);
+  bool readSubgraph(GraphData*,std::vector<std::string>&,Graph&);
 };
 
 template<typename GR, typename BP>
@@ -109,6 +112,22 @@ bool NetworkPool<GR,BP>::existNode(std::string protein)
   return true;
   else
   return false;
+}
+
+template<typename GR, typename BP>
+bool NetworkPool<GR,BP>::readSubgraph(GraphData* data, std::vector<std::string>& nodeset, Graph&)
+{
+	
+	return true;
+}
+template<typename GR, typename BP>
+bool NetworkPool<GR,BP>::subnetworkConnection(std::vector<std::string>& nodeset,unsigned i)
+{
+	//GraphData* networkdata=getGraph(i);
+	//Graph subgraph;
+	////readSubgraph(networkdata,nodeset,subgraph);
+	//return lemon::connected(subgraph);
+	return true;
 }
 
 template<typename GR, typename BP>

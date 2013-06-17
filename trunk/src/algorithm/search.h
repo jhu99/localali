@@ -26,21 +26,24 @@ private:
 	typedef typename SubNet::K_Spine K_Spine;
 public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  /// Labels of the nodes
+  /// Labels of the nodes.
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
-  /// Mapping from labels to original nodes
+  /// Mapping from labels to original nodes.
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 
     unsigned _numSpecies;
+    unsigned _seedSize;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
 	Search();
 	~Search(){}
 	void test(LayerGraph&,NetworkPool&);
-	void sampleSubNet(SubNet&,LayerGraph&,NetworkPool&,Node&);
+	bool sampleSubNet(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
 	int sampleStringElement(int);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool expandspine(K_Spine,K_Spine&,std::vector<Node>,Node,LayerGraph&,NetworkPool&,unsigned);
+	void verifyspine(LayerGraph&,NetworkPool&);
+	bool checkConnection(SubNet&,LayerGraph&,NetworkPool&);
 	
 };
 
@@ -49,35 +52,86 @@ Search<NP,SN,LG>::Search()
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 {
-	_numSpecies=3;
+	_numSpecies=5;
+	_seedSize=3;
 }
 
 template<typename NP, typename SN, typename LG>
 void
 Search<NP,SN,LG>::test(LayerGraph& layergraph,NetworkPool& networks)
 {
+	verifyspine(layergraph,networks);
+	std::discrete_distribution<int> discrete(layergraph.density.begin(),layergraph.density.end());
 	SubNet mysubnet;
-	for(NodeIt node(layergraph.graph); node!=lemon::INVALID; ++node)
+	if(!sampleSubNet(mysubnet,layergraph,networks,discrete) &&
+	   g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	{
-		sampleSubNet(mysubnet,layergraph,networks,node);
+		std::cerr << "Sampling of subnet failed!" << std::endl;
 	}
 }
 
 /// Randomly sample a d subnet from G_h
 template<typename NP, typename SN, typename LG>
-void
-Search<NP,SN,LG>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks, Node& node)
+bool
+Search<NP,SN,LG>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks,std::discrete_distribution<int>& discrete)
 {
-	_numSpecies=subnet._numSpecies;
 	/// Randomly sample a k-spine containing node.
-	K_Spine pspine;
-	if(!sampleKSpine(node,pspine,layergraph,networks))return;
+	int dice_roll;
+	Node node;
+	for(unsigned i=0;i<_seedSize;++i)
+	{
+		dice_roll = discrete(generator);
+		node = layergraph.validnodes[dice_roll];
+		K_Spine pspine;
+	    if(!sampleKSpine(node,pspine,layergraph,networks))
+	    {
+			std::cerr <<"Invalid sample node!"<<std::endl;return false;
+		}
+
+		/// Output this sample.
+		if(g_verbosity >= VERBOSE_NON_ESSENTIAL)
+		{
+			for(unsigned j=0;j<_numSpecies;++j)
+				std::cout << layergraph.node2label[pspine.data[j]]<<" ";
+			std::cout << std::endl;
+		}
+	    subnet.net_spines.push_back(pspine);
+	}
+	//subnet.induceSubgraphs();
+	return checkConnection(subnet,layergraph,networks);
+}
+
+/// Collect these nodes which can conduct a successful sample of k-spine.
+template<typename NP, typename SN, typename LG>
+void
+Search<NP,SN,LG>::verifyspine(LayerGraph& layergraph,NetworkPool& networks)
+{
+	for(NodeIt node(layergraph.graph); node!=lemon::INVALID; ++node)
+	{
+		K_Spine pspine;
+		if(sampleKSpine(node,pspine,layergraph,networks))
+		{
+			layergraph.setConfiguration(node);
+		}
+	}
+}
+
+template<typename NP, typename SN, typename LG>
+bool
+Search<NP,SN,LG>::checkConnection(SubNet& subnet,LayerGraph& layergraph,NetworkPool& networks)
+{
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		if(pspine.states[i])
-		std::cerr << layergraph.node2label[pspine.data[i]] <<" ";
+		std::vector<std::string> nodeset;
+		for(unsigned j=0;j<_seedSize;++j)
+		{
+			std::string element=layergraph.node2label[subnet.net_spines[j].data[i]];
+			if(find(nodeset.begin(),nodeset.end(),element)!=nodeset.end())continue;
+			nodeset.push_back(element);
+		}
+		if(!networks.subnetworkConnection(nodeset,i)) return false;
 	}
-	std::cerr << std::endl;
+	return true;
 }
 
 template<typename NP, typename SN, typename LG>

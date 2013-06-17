@@ -27,12 +27,9 @@ public:
   /// Mapping from labels to original nodes
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 
-  Graph* data;
-  OrigLabelNodeMap *node2label;
-  InvOrigLabelNodeMap label2node;
-
   unsigned _numSpecies;// The number of observed species.
-  struct _K_Spine
+  unsigned _seedSize;
+  typedef struct _K_Spine
   {
 	  std::array<Node,RESERVED_SPECIES> data;
 	  std::array<bool,RESERVED_SPECIES> states;
@@ -41,12 +38,22 @@ public:
 		  states.fill(false);
 	  }
 	  ~_K_Spine(){};
-  };
-  typedef struct _K_Spine K_Spine;
+  }K_Spine;
+  typedef struct _GraphData
+  {
+	  Graph *g;
+	  _GraphData()
+	  {
+		  g=new Graph();
+	  }
+	  ~_GraphData(){delete g;}
+  }GraphData;
   std::vector<K_Spine> net_spines;
+  std::vector<GraphData*> subgraphs;
 
   SubNet(unsigned);
   ~SubNet(){};
+  bool induceSubgraphs(NetworkPool&, LayerGraph&);
 };
 
 template<typename NP, typename LG>
@@ -54,5 +61,33 @@ SubNet<NP,LG>::SubNet(unsigned k=5):
 net_spines()
 {
 	_numSpecies=k;
+	_seedSize=3;
 	//initSubNet();
+}
+
+template<typename NP, typename LG>
+bool
+SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
+{
+	//for(unsigned i=0;i<_numSpecies;++i)
+	//{
+		//Graph* graph= new Graph();
+		//std::vector<std::string> nodeset;
+		//for(unsigned j=0;j<_seedSize;++j)
+		//{
+			//std::string element=layergraph.node2label[subnet.net_spines[j].data[i]];
+			//if(find(nodeset.begin(),nodeset.end(),element)!=nodeset.end())continue;
+			//nodeset.push_back(element);
+		//}
+		//for(int p1=0;p1<nodeset.size();p1++)
+		//{
+			//std::string protein1=nodeset[p1];
+			//for(int p2=p1+1;p2<nodeset.size();p2++)
+			//{
+				//std::string protein2=nodeset[p2];
+			//}
+		//}
+	//}
+
+	return true;
 }
