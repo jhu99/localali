@@ -41,6 +41,7 @@ public:
     InvOrigLabelNodeMap *invIdNodeMap;
     DegreeNodeMap *degreeMap;
     WeightEdgeMap *weight;
+    std::unordered_map<std::string,int> interactionmap;
     lemon::ArcLookUp<Graph> *arcLookUpG;
     int nodeNum;
     int edgeNum;
@@ -147,7 +148,7 @@ bool NetworkPool<GR,BP>::readNetwork(std::string &filename,short i)
 {
   GraphData *data = new GraphData();
   std::string line;
-  std::unordered_map<std::string,int> interactionmap;
+  
   std::ifstream input(filename.c_str());
   if(!input.good())
   {
@@ -171,11 +172,11 @@ bool NetworkPool<GR,BP>::readNetwork(std::string &filename,short i)
 	 }
 	 keystr.append(protein1);
 	 keystr.append(protein2);
-	 if(interactionmap.find(keystr)==interactionmap.end())
-		interactionmap[keystr]=1;
+	 if(data->interactionmap.find(keystr)==data->interactionmap.end())
+		data->interactionmap[keystr]=1;
 	 else
 	 {
-		 interactionmap[keystr]++;
+		 data->interactionmap[keystr]++;
 		 continue;
 	 }
     Node node1,node2;
