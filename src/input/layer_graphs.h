@@ -19,6 +19,10 @@ public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
+    /// Verified Nodes in the search table. 
+  //typedef std::unordered_map<int, int> VerifiedNodeMap;
+  typedef std::vector<typename Graph::Node> ValidNodeSeq;
+  typedef std::vector<int> DensitySeq;
   /// Mapping from labels to original nodes
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
   typedef std::unordered_map<std::string, int> EdgeNumMap; 
@@ -26,11 +30,14 @@ public:
   Graph graph;
   OrigLabelNodeMap node2label;
   InvOrigLabelNodeMap label2node;
+  ValidNodeSeq validnodes;
+  DensitySeq density;
   EdgeNumMap edgenum;
 
   Layer_graphs();
   ~Layer_graphs(){};
   bool read(std::string&,NetworkPool&);
+  void setConfiguration(Node&);
 };
 
 template<typename GR, typename NP>
@@ -38,8 +45,18 @@ Layer_graphs<GR,NP>::Layer_graphs()
   :graph()
   ,node2label(graph)
   ,label2node()
+  ,validnodes()
+  ,density()
   ,edgenum()
 {
+}
+
+template<typename GR, typename NP>
+void
+Layer_graphs<GR,NP>::setConfiguration(Node& node)
+{
+	validnodes.push_back(node);
+	density.push_back(1);// assign a probability density function for validnodes.
 }
 
 template<typename GR, typename NP>
