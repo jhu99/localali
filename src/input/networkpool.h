@@ -75,8 +75,8 @@ public:
   GraphData* getGraph(int);
   unsigned getHost(std::string);
   bool existNode(std::string);
-  bool subnetworkConnection(std::vector<std::string>&,unsigned);
   bool readSubgraph(GraphData*,std::vector<std::string>&,Graph&);
+  bool getNeighbors(std::vector<std::string>&, std::vector<std::string>&);
 };
 
 template<typename GR, typename BP>
@@ -100,6 +100,25 @@ typename NetworkPool<GR,BP>::GraphData* NetworkPool<GR,BP>::getGraph(int i)
 }
 
 template<typename GR, typename BP>
+bool NetworkPool<GR,BP>::getNeighbors(
+std::vector<std::string>& innerproteins,
+std::vector<std::string>& neighborproteins)
+{
+	for(unsigned i=0;i<innerproteins.size();++i)
+	{
+		std::string protein=innerproteins[i];
+		GraphData *graphdata=getGraph(i);
+		Node node=(*graphdata->invIdNodeMap)[protein];
+		for (IncEdgeIt e(*graphdata->g,node);e!=lemon::INVALID;++e)
+		{
+			Node rnode=graphdata->g->runningNode(e);
+			neighborproteins.push_back((*graphdata->label)[rnode]);
+		}
+	}
+	return true;
+}
+
+template<typename GR, typename BP>
 unsigned NetworkPool<GR,BP>::getHost(std::string protein)
 {
   if(proteinHost.find(protein)==proteinHost.end()) return 100;// 100 represents protein doesn't exist in input networks.
@@ -118,16 +137,6 @@ bool NetworkPool<GR,BP>::existNode(std::string protein)
 template<typename GR, typename BP>
 bool NetworkPool<GR,BP>::readSubgraph(GraphData* data, std::vector<std::string>& nodeset, Graph&)
 {
-	
-	return true;
-}
-template<typename GR, typename BP>
-bool NetworkPool<GR,BP>::subnetworkConnection(std::vector<std::string>& nodeset,unsigned i)
-{
-	//GraphData* networkdata=getGraph(i);
-	//Graph subgraph;
-	////readSubgraph(networkdata,nodeset,subgraph);
-	//return lemon::connected(subgraph);
 	return true;
 }
 

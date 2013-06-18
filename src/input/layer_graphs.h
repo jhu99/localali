@@ -20,7 +20,7 @@ public:
   /// Labels of the nodes
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
     /// Verified Nodes in the search table. 
-  //typedef std::unordered_map<int, int> VerifiedNodeMap;
+  typedef std::unordered_map<int, bool> VerifiedNodeMap;
   typedef std::vector<typename Graph::Node> ValidNodeSeq;
   typedef std::vector<int> DensitySeq;
   /// Mapping from labels to original nodes
@@ -31,6 +31,7 @@ public:
   OrigLabelNodeMap node2label;
   InvOrigLabelNodeMap label2node;
   ValidNodeSeq validnodes;
+  VerifiedNodeMap validnodemap;
   DensitySeq density;
   EdgeNumMap edgenum;
 
@@ -56,6 +57,7 @@ void
 Layer_graphs<GR,NP>::setConfiguration(Node& node)
 {
 	validnodes.push_back(node);
+	validnodemap[graph.id(node)]=true;
 	density.push_back(1);// assign a probability density function for validnodes.
 }
 
@@ -81,6 +83,9 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
     /// Proteins require to be available in PPI networks.
     if(!(networks.existNode(protein1) && networks.existNode(protein2)))
       continue;
+    /// There are no edges for paralogous proteins.
+    if(networks.getHost(protein1)==networks.getHost(protein2))
+	  continue;
     if(protein1.compare(protein2)==0)continue;
     if(protein1.compare(protein2)>0)
     {
