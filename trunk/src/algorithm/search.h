@@ -13,15 +13,17 @@ Description: Searching high-scoring subnetworks.
 #include <chrono>
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
+#include <lemon/connectivity.h>
 #include "verbose.h"
 
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 class Search
 {
 private:
 	typedef NP NetworkPool;
 	typedef SN SubNet;
 	typedef LG LayerGraph;
+	typedef OP Option;
 	typedef typename LayerGraph::Graph Graph;
 	typedef typename SubNet::K_Spine K_Spine;
 public:
@@ -35,7 +37,7 @@ public:
     unsigned _seedSize;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
-	Search();
+	Search(Option&);
 	~Search(){}
 	void test(LayerGraph&,NetworkPool&);
 	bool sampleSubNet(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
@@ -47,22 +49,22 @@ public:
 	
 };
 
-template<typename NP, typename SN, typename LG>
-Search<NP,SN,LG>::Search()
+template<typename NP, typename SN, typename LG, typename OP>
+Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 {
-	_numSpecies=5;
-	_seedSize=3;
+	_numSpecies=myoption.numspecies;
+	_seedSize=myoption.seedsize;
 }
 
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG>::test(LayerGraph& layergraph,NetworkPool& networks)
+Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 {
 	verifyspine(layergraph,networks);
 	std::discrete_distribution<int> discrete(layergraph.density.begin(),layergraph.density.end());
-	SubNet mysubnet;
+	SubNet mysubnet(_numSpecies,_seedSize);
 	if(!sampleSubNet(mysubnet,layergraph,networks,discrete) &&
 	   g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	{
@@ -71,21 +73,28 @@ Search<NP,SN,LG>::test(LayerGraph& layergraph,NetworkPool& networks)
 }
 
 /// Randomly sample a d subnet from G_h
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks,std::discrete_distribution<int>& discrete)
+Search<NP,SN,LG,OP>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks,std::discrete_distribution<int>& discrete)
 {
 	/// Randomly sample a k-spine containing node.
-	int dice_roll;
-	Node node;
+	int dice_roll = discrete(generator);
+	Node firstnode = layergraph.validnodes[dice_roll];
+	std::vector<Node> candidates;
 	for(unsigned i=0;i<_seedSize;++i)
 	{
-		dice_roll = discrete(generator);
-		node = layergraph.validnodes[dice_roll];
+		Node node;
+		if(0==i) node = firstnode;
+		else
+		{
+			dice_roll = distribution(generator)%candidates.size();
+			node=candidates[dice_roll];
+		}
 		K_Spine pspine;
 	    if(!sampleKSpine(node,pspine,layergraph,networks))
 	    {
-			std::cerr <<"Invalid sample node!"<<std::endl;return false;
+			std::cerr <<"Invalid sample node!"<<std::endl;
+			return false;
 		}
 
 		/// Output this sample.
@@ -95,16 +104,31 @@ Search<NP,SN,LG>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPo
 				std::cout << layergraph.node2label[pspine.data[j]]<<" ";
 			std::cout << std::endl;
 		}
+		std::vector<std::string> innerproteins;
+		std::vector<std::string> neighborproteins;
+		for(unsigned j=0;j<_numSpecies;j++)
+		{
+			innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
+		}
+		networks.getNeighbors(innerproteins,neighborproteins);
+		for(unsigned j=0;j<neighborproteins.size();++j)
+		{
+			std::string protein=neighborproteins[j];
+			Node neighbor=layergraph.label2node[protein];
+			int neighborid=layergraph.graph.id(neighbor);
+			if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
+			candidates.push_back(neighbor);
+		}
 	    subnet.net_spines.push_back(pspine);
 	}
-	//subnet.induceSubgraphs();
+	subnet.induceSubgraphs(networks,layergraph);
 	return checkConnection(subnet,layergraph,networks);
 }
 
 /// Collect these nodes which can conduct a successful sample of k-spine.
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG>::verifyspine(LayerGraph& layergraph,NetworkPool& networks)
+Search<NP,SN,LG,OP>::verifyspine(LayerGraph& layergraph,NetworkPool& networks)
 {
 	for(NodeIt node(layergraph.graph); node!=lemon::INVALID; ++node)
 	{
@@ -116,27 +140,21 @@ Search<NP,SN,LG>::verifyspine(LayerGraph& layergraph,NetworkPool& networks)
 	}
 }
 
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG>::checkConnection(SubNet& subnet,LayerGraph& layergraph,NetworkPool& networks)
+Search<NP,SN,LG,OP>::checkConnection(SubNet& subnet,LayerGraph& layergraph,NetworkPool& networks)
 {
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		std::vector<std::string> nodeset;
-		for(unsigned j=0;j<_seedSize;++j)
-		{
-			std::string element=layergraph.node2label[subnet.net_spines[j].data[i]];
-			if(find(nodeset.begin(),nodeset.end(),element)!=nodeset.end())continue;
-			nodeset.push_back(element);
-		}
-		if(!networks.subnetworkConnection(nodeset,i)) return false;
+		if(!lemon::connected(*subnet.subgraphs[i]->g))
+			return false;
 	}
 	return true;
 }
 
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG>::sampleKSpine(Node& node,K_Spine& pspine,LayerGraph& layergraph,NetworkPool& networks)
+Search<NP,SN,LG,OP>::sampleKSpine(Node& node,K_Spine& pspine,LayerGraph& layergraph,NetworkPool& networks)
 {
 	std::vector<Node> candidates;//
 	K_Spine spine;
@@ -160,16 +178,16 @@ Search<NP,SN,LG>::sampleKSpine(Node& node,K_Spine& pspine,LayerGraph& layergraph
 	return expandspine(spine,pspine,candidates, node,layergraph,networks,k);
 }
 
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 int
-Search<NP,SN,LG>::sampleStringElement(int up)
+Search<NP,SN,LG,OP>::sampleStringElement(int up)
 {
     int dice_roll = distribution(generator)%(up);
     return dice_roll;
 }
-template<typename NP, typename SN, typename LG>
+template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG>::expandspine(	K_Spine spine
+Search<NP,SN,LG,OP>::expandspine(	K_Spine spine
 								, K_Spine& pspine
 								, std::vector<Node> candidates
 								, Node node					

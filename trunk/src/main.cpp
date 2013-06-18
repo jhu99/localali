@@ -21,13 +21,6 @@ Description: Major body
 
 using namespace std;
 
-typedef lemon::ListGraph Graph;
-typedef lemon::SmartGraph BpGraph;
-typedef NetworkPool<Graph,BpGraph> InputGraph;
-typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
-typedef SubNet<InputGraph,LayerGraph> MySubNet;
-typedef Search<InputGraph, MySubNet, LayerGraph> MySearch;
-
 typedef struct _Option
 {
   vector<std::string> networkfiles;
@@ -35,15 +28,29 @@ typedef struct _Option
   std::string resultfolder;
   std::string profile;
   float beta;
+  int numspecies;
+  int seedsize;
   _Option()
   {
     profile="./profile.txt";
+    numspecies=5;
+    seedsize=5;
   }
 }Option;
 
+typedef lemon::ListGraph Graph;
+typedef lemon::SmartGraph BpGraph;
+typedef NetworkPool<Graph,BpGraph> InputGraph;
+typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
+typedef SubNet<InputGraph,LayerGraph> MySubNet;
+typedef Search<InputGraph, MySubNet, LayerGraph, Option> MySearch;
+
 bool setParser(ArgParser& parser, Option& myoption)
 {
-  return true;
+	parser
+	.refOption("numspecies","Number of the species compared. Default is 5.", myoption.numspecies)
+	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize);
+	return true;
 }
 
 bool runParser(ArgParser& myparser, Option& myoption)
@@ -61,13 +68,12 @@ int main(int argc, char** argv)
   Option myoption;
   ArgParser myparser(argc,argv);
   setParser(myparser,myoption);
+  runParser(myparser,myoption);
+  
   InputGraph networks;
   LayerGraph layergraph;
-  MySubNet isubnet(5);
-  MySearch isearch;
+  MySearch isearch(myoption);
   g_verbosity=VERBOSE_NON_ESSENTIAL;
-
-  runParser(myparser,myoption);
 
   //Test read interface for PPI networks;
   networks.initNetworkPool(myoption.networkfiles);

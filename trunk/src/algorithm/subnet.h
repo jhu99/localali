@@ -60,17 +60,17 @@ public:
   std::vector<K_Spine> net_spines;
   std::vector<GraphData*> subgraphs;
 
-  SubNet(unsigned);
+  SubNet(unsigned,unsigned);
   ~SubNet(){};
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
 };
 
 template<typename NP, typename LG>
-SubNet<NP,LG>::SubNet(unsigned k=5):
+SubNet<NP,LG>::SubNet(unsigned num1, unsigned num2):
 net_spines()
 {
-	_numSpecies=k;
-	_seedSize=3;
+	_numSpecies=num1;
+	_seedSize=num2;
 	//initSubNet();
 }
 
@@ -89,15 +89,18 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 			nodeset.push_back(element);
 			Node node=graphdata->g->addNode();
 			graphdata->node2label->set(node,element);
-			graphdata->label2node[element]=node;
+			(*graphdata->label2node)[element]=node;
+			assert((*networks.getGraph(i)->invIdNodeMap).find(element)!=(*networks.getGraph(i)->invIdNodeMap).end());
 		}
-		for(int p1=0;p1<nodeset.size();p1++)
+		for(unsigned p1=0;p1<nodeset.size();p1++)
 		{
 			std::string protein1=nodeset[p1];
-			for(int p2=p1+1;p2<nodeset.size();p2++)
+			Node node1=(*graphdata->label2node)[protein1];
+			for(unsigned p2=p1+1;p2<nodeset.size();p2++)
 			{
 				std::string protein2=nodeset[p2];
 				std::string keystr;
+				Node node2=(*graphdata->label2node)[protein2];
 				if(protein1.compare(protein2)>0)
 			     {
 					 std::string tempstr = protein1;
@@ -106,11 +109,13 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 				 }
 				 keystr.append(protein1);
 				 keystr.append(protein2);
+				 
 				 if(networks.getGraph(i)->interactionmap.find(keystr)
 				 ==networks.getGraph(i)->interactionmap.end())continue;
-				 //graphdata
+				 graphdata->g->addEdge(node1,node2);
 			}
 		}
+		subgraphs.push_back(graphdata);
 	}
 
 	return true;
