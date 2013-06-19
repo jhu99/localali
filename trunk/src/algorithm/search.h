@@ -34,18 +34,24 @@ public:
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 
     unsigned _numSpecies;
-    unsigned _seedSize;
+    int _seedSize;
+    int _seedTries;
+    int _numSamples;
+    int _numConnected;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
+    typename std::vector<SubNet*> refinedSeeds;
 	Search(Option&);
-	~Search(){}
+	~Search(){};
 	void test(LayerGraph&,NetworkPool&);
-	bool sampleSubNet(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
+	void searchSeeds(LayerGraph&,NetworkPool&);
+	bool sampleSeed(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
 	int sampleStringElement(int);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool expandspine(K_Spine,K_Spine&,std::vector<Node>,Node,LayerGraph&,NetworkPool&,unsigned);
 	void verifyspine(LayerGraph&,NetworkPool&);
 	bool checkConnection(SubNet&,LayerGraph&,NetworkPool&);
+	void expandRefinedSeeds(SubNet&);
 	
 };
 
@@ -53,38 +59,78 @@ template<typename NP, typename SN, typename LG, typename OP>
 Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
+,refinedSeeds()
 {
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
+	_seedTries=myoption.seedtries;
+	_numSamples=myoption.numsamples;
+	_numConnected=myoption.numconnected;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 {
+	searchSeeds(layergraph,networks);
+	for(unsigned i=0;i<refinedSeeds.size();i++)
+	{
+		for(int j=0; j<_seedTries;j++)
+		{
+			SubNet subnet=*refinedSeeds[i];
+			expandRefinedSeeds(subnet);
+		}
+	}
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::expandRefinedSeeds(SubNet& subnet)
+{
+	
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::searchSeeds(LayerGraph& layergraph,NetworkPool& networks)
+{
 	verifyspine(layergraph,networks);
 	std::discrete_distribution<int> discrete(layergraph.density.begin(),layergraph.density.end());
-	SubNet mysubnet(_numSpecies,_seedSize);
-	if(!sampleSubNet(mysubnet,layergraph,networks,discrete) &&
-	   g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	int num=0;
+	while(num++<_numSamples)
 	{
-		std::cerr << "Sampling of subnet failed!" << std::endl;
-	}
+		SubNet* mysubnet= new SubNet(_numSpecies,_seedSize);
+		if(!sampleSeed(*mysubnet,layergraph,networks,discrete) &&
+		   g_verbosity>=VERBOSE_NON_ESSENTIAL)
+		{
+			delete mysubnet;
+			std::cerr << "Failed to sample a refined seed!" << std::endl;
+		}else
+		{
+			refinedSeeds.push_back(mysubnet);
+		}
+    }
+    std::cerr << "There are a total of "<< refinedSeeds.size() <<" refined seeds."<< std::endl;
 }
 
 /// Randomly sample a d subnet from G_h
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG,OP>::sampleSubNet(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks,std::discrete_distribution<int>& discrete)
+Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkPool& networks,std::discrete_distribution<int>& discrete)
 {
 	/// Randomly sample a k-spine containing node.
 	int dice_roll = discrete(generator);
 	Node firstnode = layergraph.validnodes[dice_roll];
 	std::vector<Node> candidates;
-	for(unsigned i=0;i<_seedSize;++i)
+	for(int i=0;i<_seedSize;++i)
 	{
 		Node node;
 		if(0==i) node = firstnode;
+		else if(candidates.size()==0)
+		{
+			dice_roll = discrete(generator);
+			node=layergraph.validnodes[dice_roll];
+		}
 		else
 		{
 			dice_roll = distribution(generator)%candidates.size();
@@ -144,12 +190,15 @@ template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::checkConnection(SubNet& subnet,LayerGraph& layergraph,NetworkPool& networks)
 {
+	int numConnected=0;
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		if(!lemon::connected(*subnet.subgraphs[i]->g))
-			return false;
+		if(subnet.subgraphs[i]->g->edgeNum()<(subnet.subgraphs[i]->g->nodeNum()-2))continue;
+		numConnected++;
 	}
-	return true;
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	std::cout << "There are "<<numConnected << " out of " <<_numSpecies <<" subnetwork(s) are connected!" << std::endl;
+	return numConnected>=_numConnected;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>

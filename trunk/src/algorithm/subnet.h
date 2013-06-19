@@ -61,8 +61,9 @@ public:
   std::vector<GraphData*> subgraphs;
 
   SubNet(unsigned,unsigned);
-  ~SubNet(){};
+  ~SubNet();
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
+  bool clearStructure();
 };
 
 template<typename NP, typename LG>
@@ -72,6 +73,22 @@ net_spines()
 	_numSpecies=num1;
 	_seedSize=num2;
 	//initSubNet();
+}
+
+template<typename NP, typename LG>
+SubNet<NP,LG>::~SubNet()
+{
+	for(unsigned i=0;i<subgraphs.size();i++)
+		delete subgraphs[i];
+}
+
+template<typename NP, typename LG>
+bool
+SubNet<NP,LG>::clearStructure()
+{
+	for(unsigned i=0;i<_numSpecies;++i)
+		delete subgraphs[i];
+	return true;
 }
 
 template<typename NP, typename LG>
