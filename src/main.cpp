@@ -30,11 +30,17 @@ typedef struct _Option
   float beta;
   int numspecies;
   int seedsize;
+  int seedtries;
+  int numsamples;
+  int numconnected;
   _Option()
   {
     profile="./profile.txt";
     numspecies=5;
     seedsize=5;
+    seedtries=100;
+    numsamples=10000;
+    numconnected=2;
   }
 }Option;
 
@@ -49,7 +55,10 @@ bool setParser(ArgParser& parser, Option& myoption)
 {
 	parser
 	.refOption("numspecies","Number of the species compared. Default is 5.", myoption.numspecies)
-	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize);
+	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
+	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize)
+	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.seedsize)
+	.refOption("numsamples","Number of sampled seeds. Default is 10000.", myoption.numsamples);
 	return true;
 }
 
@@ -73,14 +82,21 @@ int main(int argc, char** argv)
   InputGraph networks;
   LayerGraph layergraph;
   MySearch isearch(myoption);
+  Timer t(false);
+
   g_verbosity=VERBOSE_NON_ESSENTIAL;
 
+  t.start();
   //Test read interface for PPI networks;
   networks.initNetworkPool(myoption.networkfiles);
   layergraph.read(myoption.layerfile,networks);
 
   //Test search implementation.
+
   isearch.test(layergraph,networks);
+  t.stop();
+  if(g_verbosity>=VERBOSE_ESSENTIAL)
+  std::cerr <<"Elapsed time: "<< t <<std::endl;
 
   return 1;
 }
