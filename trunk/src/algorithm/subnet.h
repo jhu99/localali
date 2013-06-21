@@ -64,6 +64,7 @@ public:
   ~SubNet();
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
   bool clearStructure();
+  void output(LayerGraph&);
 };
 
 template<typename NP, typename LG>
@@ -83,6 +84,21 @@ SubNet<NP,LG>::~SubNet()
 }
 
 template<typename NP, typename LG>
+void
+SubNet<NP,LG>::output(LayerGraph& layergraph)
+{
+	for(unsigned i=0;i<net_spines.size();i++)
+	{
+		for(unsigned j=0;j<_numSpecies;j++)
+		{
+			if(g_verbosity>=VERBOSE_ESSENTIAL)
+			std::cout << layergraph.node2label[net_spines[i].data[j]]<<"\t";
+		}
+		std::cout << std::endl;
+	}
+}
+
+template<typename NP, typename LG>
 bool
 SubNet<NP,LG>::clearStructure()
 {
@@ -95,6 +111,7 @@ template<typename NP, typename LG>
 bool
 SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 {
+	if(subgraphs.size()>0)subgraphs.clear();
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
 		GraphData* graphdata = new GraphData();
