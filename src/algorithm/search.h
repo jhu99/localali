@@ -15,6 +15,7 @@ Description: Searching high-scoring subnetworks.
 #include <lemon/smart_graph.h>
 #include <lemon/connectivity.h>
 #include "verbose.h"
+//#include "input/tree.h"
 
 template<typename NP, typename SN, typename LG, typename OP>
 class Search
@@ -37,6 +38,7 @@ public:
     int _seedSize;
     int _seedTries;
     int _numSamples;
+    int _numExtention;
     int _numConnected;
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
@@ -45,13 +47,15 @@ public:
 	~Search(){};
 	void test(LayerGraph&,NetworkPool&);
 	void searchSeeds(LayerGraph&,NetworkPool&);
+	void searchCandidates(std::vector<Node>&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool sampleSeed(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
 	int sampleStringElement(int);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool expandspine(K_Spine,K_Spine&,std::vector<Node>,Node,LayerGraph&,NetworkPool&,unsigned);
 	void verifyspine(LayerGraph&,NetworkPool&);
 	bool checkConnection(SubNet&,LayerGraph&,NetworkPool&);
-	void expandRefinedSeeds(SubNet&);
+	void expandRefinedSeeds(SubNet&,LayerGraph&,NetworkPool&);
+	bool heuristicSearch(SubNet&,std::vector<Node>&,LayerGraph&,NetworkPool&);
 	
 };
 
@@ -66,6 +70,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_seedTries=myoption.seedtries;
 	_numSamples=myoption.numsamples;
 	_numConnected=myoption.numconnected;
+	_numExtention=myoption.numextention;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -73,21 +78,102 @@ void
 Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 {
 	searchSeeds(layergraph,networks);
+	int numAll=0;
 	for(unsigned i=0;i<refinedSeeds.size();i++)
 	{
+		int numQualified=0;
 		for(int j=0; j<_seedTries;j++)
 		{
 			SubNet subnet=*refinedSeeds[i];
-			expandRefinedSeeds(subnet);
+			expandRefinedSeeds(subnet,layergraph,networks);
+			subnet.induceSubgraphs(networks,layergraph);
+			if(checkConnection(subnet,layergraph,networks))
+			{
+				subnet.output(layergraph);
+				numQualified++;
+			}
 		}
+		numAll+=numQualified;
+		if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+			std::cout <<numQualified<<" subnets have been found for seed "<< i <<"."<<std::endl;
+	}
+	std::cout <<numAll<<" subnets have been found for all seeds."<<std::endl;
+}
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::searchCandidates(std::vector<Node>& candidates,
+									  K_Spine& pspine,
+									  LayerGraph& layergraph,
+									  NetworkPool& networks)
+{
+	std::vector<std::string> innerproteins;
+	std::vector<std::string> neighborproteins;
+	for(unsigned j=0;j<_numSpecies;j++)
+	{
+		innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
+	}
+	networks.getNeighbors(innerproteins,neighborproteins);
+	for(unsigned j=0;j<neighborproteins.size();++j)
+	{
+		std::string protein=neighborproteins[j];
+		Node neighbor=layergraph.label2node[protein];
+		int neighborid=layergraph.graph.id(neighbor);
+		if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
+		candidates.push_back(neighbor);
 	}
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG,OP>::expandRefinedSeeds(SubNet& subnet)
+Search<NP,SN,LG,OP>::expandRefinedSeeds(SubNet& subnet,LayerGraph& layergraph,NetworkPool& networks)
 {
-	
+	int num=0;
+	std::vector<Node> candidates;
+	// searching neighbors of subnet.
+	for(unsigned i=0;i<subnet.net_spines.size();i++)
+		searchCandidates(candidates, subnet.net_spines[i], layergraph, networks);
+	while(num++<_numExtention)
+	{
+		heuristicSearch(subnet, candidates, layergraph,networks);
+	}	
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet,std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
+{
+	std::vector<Node> optimalcandidates;
+	std::unordered_map<int,int> candidatesmap;
+	int maxnum=1;
+	for(unsigned i=0;i<candidates.size();i++)
+	{
+		int nodeid=layergraph.graph.id(candidates[i]);
+		if(candidatesmap.find(nodeid)!=candidatesmap.end())
+		{
+			candidatesmap[nodeid]++;
+			if(maxnum<candidatesmap[nodeid])
+				maxnum=candidatesmap[nodeid];
+		}
+		else
+			candidatesmap[nodeid]=1;
+	}
+	for(std::unordered_map<int,int>::iterator it=candidatesmap.begin();it!=candidatesmap.end();it++)
+	{
+		if(it->second==maxnum)
+			optimalcandidates.push_back(layergraph.graph.nodeFromId(it->first));
+	}
+	///
+	int dice_roll = distribution(generator)%optimalcandidates.size();
+	Node node=optimalcandidates[dice_roll];
+	K_Spine pspine;
+    if(!sampleKSpine(node,pspine,layergraph,networks))
+    {
+		std::cerr <<"Invalid sample node!"<<std::endl;
+		return false;
+	}
+	subnet.net_spines.push_back(pspine);
+	searchCandidates(candidates,pspine,layergraph,networks);
+	return true;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -100,10 +186,10 @@ Search<NP,SN,LG,OP>::searchSeeds(LayerGraph& layergraph,NetworkPool& networks)
 	while(num++<_numSamples)
 	{
 		SubNet* mysubnet= new SubNet(_numSpecies,_seedSize);
-		if(!sampleSeed(*mysubnet,layergraph,networks,discrete) &&
-		   g_verbosity>=VERBOSE_NON_ESSENTIAL)
+		if(!sampleSeed(*mysubnet,layergraph,networks,discrete))
 		{
 			delete mysubnet;
+			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 			std::cerr << "Failed to sample a refined seed!" << std::endl;
 		}else
 		{
@@ -133,6 +219,26 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 		}
 		else
 		{
+			//std::vector<Node> optimalcandidates;
+			//std::unordered_map<int,int> candidatesmap;
+			//int maxnum=1;
+			//for(unsigned i=0;i<candidates.size();i++)
+			//{
+				//int nodeid=layergraph.graph.id(candidates[i]);
+				//if(candidatesmap.find(nodeid)!=candidatesmap.end())
+				//{
+					//candidatesmap[nodeid]++;
+					//if(maxnum<candidatesmap[nodeid])
+						//maxnum=candidatesmap[nodeid];
+				//}
+				//else
+					//candidatesmap[nodeid]=1;
+			//}
+			//for(std::unordered_map<int,int>::iterator it=candidatesmap.begin();it!=candidatesmap.end();it++)
+			//{
+				//if(it->second==maxnum)
+					//optimalcandidates.push_back(layergraph.graph.nodeFromId(it->first));
+			//}
 			dice_roll = distribution(generator)%candidates.size();
 			node=candidates[dice_roll];
 		}
@@ -150,21 +256,22 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 				std::cout << layergraph.node2label[pspine.data[j]]<<" ";
 			std::cout << std::endl;
 		}
-		std::vector<std::string> innerproteins;
-		std::vector<std::string> neighborproteins;
-		for(unsigned j=0;j<_numSpecies;j++)
-		{
-			innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
-		}
-		networks.getNeighbors(innerproteins,neighborproteins);
-		for(unsigned j=0;j<neighborproteins.size();++j)
-		{
-			std::string protein=neighborproteins[j];
-			Node neighbor=layergraph.label2node[protein];
-			int neighborid=layergraph.graph.id(neighbor);
-			if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
-			candidates.push_back(neighbor);
-		}
+		searchCandidates(candidates, pspine, layergraph, networks);
+		//std::vector<std::string> innerproteins;
+		//std::vector<std::string> neighborproteins;
+		//for(unsigned j=0;j<_numSpecies;j++)
+		//{
+			//innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
+		//}
+		//networks.getNeighbors(innerproteins,neighborproteins);
+		//for(unsigned j=0;j<neighborproteins.size();++j)
+		//{
+			//std::string protein=neighborproteins[j];
+			//Node neighbor=layergraph.label2node[protein];
+			//int neighborid=layergraph.graph.id(neighbor);
+			//if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
+			//candidates.push_back(neighbor);
+		//}
 	    subnet.net_spines.push_back(pspine);
 	}
 	subnet.induceSubgraphs(networks,layergraph);
@@ -193,7 +300,7 @@ Search<NP,SN,LG,OP>::checkConnection(SubNet& subnet,LayerGraph& layergraph,Netwo
 	int numConnected=0;
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		if(subnet.subgraphs[i]->g->edgeNum()<(subnet.subgraphs[i]->g->nodeNum()-2))continue;
+		if(subnet.subgraphs[i]->g->edgeNum()<(subnet.subgraphs[i]->g->nodeNum()-1))continue;
 		numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)

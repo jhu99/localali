@@ -16,6 +16,7 @@ Description: Major body
 #include "input/networkpool.h"
 #include "input/processprofile.h"
 #include "input/layer_graphs.h"
+#include "input/tree.h"
 #include "algorithm/subnet.h"
 #include "algorithm/search.h"
 
@@ -27,25 +28,30 @@ typedef struct _Option
   std::string layerfile;
   std::string resultfolder;
   std::string profile;
+  std::string treefile;
   float beta;
   int numspecies;
   int seedsize;
   int seedtries;
+  int numextention;
   int numsamples;
   int numconnected;
   _Option()
   {
     profile="./profile.txt";
-    numspecies=5;
+    treefile="./dataset/dip/3-way/tree.txt";
+    numspecies=3;
     seedsize=5;
-    seedtries=100;
-    numsamples=10000;
+    seedtries=10;
+    numextention=10;
+    numsamples=1000;
     numconnected=2;
   }
 }Option;
 
 typedef lemon::ListGraph Graph;
 typedef lemon::SmartGraph BpGraph;
+typedef Tree<BpGraph, Option> MyTree;
 typedef NetworkPool<Graph,BpGraph> InputGraph;
 typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
 typedef SubNet<InputGraph,LayerGraph> MySubNet;
@@ -54,11 +60,12 @@ typedef Search<InputGraph, MySubNet, LayerGraph, Option> MySearch;
 bool setParser(ArgParser& parser, Option& myoption)
 {
 	parser
-	.refOption("numspecies","Number of the species compared. Default is 5.", myoption.numspecies)
+	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize)
-	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.seedsize)
-	.refOption("numsamples","Number of sampled seeds. Default is 10000.", myoption.numsamples);
+	.refOption("numextention","Number of the extention . Default is 10.", myoption.numextention)
+	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
+	.refOption("numsamples","Number of sampled seeds. Default is 1000.", myoption.numsamples);
 	return true;
 }
 
@@ -82,9 +89,10 @@ int main(int argc, char** argv)
   InputGraph networks;
   LayerGraph layergraph;
   MySearch isearch(myoption);
+  MyTree itree;
   Timer t(false);
 
-  g_verbosity=VERBOSE_NON_ESSENTIAL;
+  g_verbosity=VERBOSE_ESSENTIAL;
 
   t.start();
   //Test read interface for PPI networks;
@@ -92,8 +100,8 @@ int main(int argc, char** argv)
   layergraph.read(myoption.layerfile,networks);
 
   //Test search implementation.
-
   isearch.test(layergraph,networks);
+  itree.readTree(myoption.treefile);
   t.stop();
   if(g_verbosity>=VERBOSE_ESSENTIAL)
   std::cerr <<"Elapsed time: "<< t <<std::endl;
