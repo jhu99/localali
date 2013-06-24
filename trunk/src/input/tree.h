@@ -40,7 +40,7 @@ class Tree
 	/// The labels for the tree nodes.
 	OrigLabelNodeMap node2label;
 	/// The lengths for the branches in this tree.
-	WeightEdgeMap length;
+	WeightEdgeMap branchmap;
 
 	Tree();
 	~Tree(){};
@@ -48,6 +48,13 @@ class Tree
 	bool constructTree(std::string);
 };
 
+template<typename GR, typename OP>
+Tree<GR,OP>::Tree()
+:g()
+,node2label(g)
+,branchmap(g)
+{
+}
 template<typename GR, typename OP>
 bool
 Tree<GR,OP>::readTree(std::string filename)
@@ -68,15 +75,38 @@ template<typename GR, typename OP>
 bool
 Tree<GR,OP>::constructTree(std::string sentence)
 {
-	std::queue<std::string> fifopipe;
-	char* pSentence=sentence.c_str();
-	char* pch;
-	pch = strtok(pSentence,"(),:;");
-	while(pch!=NULL)
+	std::queue<std::string> wordpipe;
+	std::queue<char> parenthesepipe;
+	char * pSentence = new char [sentence.length()+1];
+	strcpy (pSentence, sentence.c_str());
+	char * pch = strtok(pSentence,"(),:;");
+	std::cout << sentence << std::endl;
+	while(pch!=0)
 	{
-		fifopipe.push(*pch);
-		std::cout << *pch << std::endl;
+		std::string word(pch);
+		if(g_verbosity>VERBOSE_ESSENTIAL)
+		std::cout <<word<<std::endl;
+		wordpipe.push(word);
+		pch=strtok(NULL,"(),:;");
+	}	
+	delete pSentence;
+	std::size_t found = sentence.find_first_of("()");
+	while(found!=std::string::npos)
+	{
+		parenthesepipe.push(sentence[found]);
+		if(g_verbosity>VERBOSE_ESSENTIAL)
+		std::cout << sentence[found];
+		found=sentence.find_first_of("()",found+1);
 	}
+	if(g_verbosity>VERBOSE_ESSENTIAL)
+	std::cout << std::endl;
+	//char element=parenthesepipe.front();
+	while(!parenthesepipe.empty())
+	{
+		std::cout << parenthesepipe.front()<<" ";
+		parenthesepipe.pop();
+	}
+	std::cout << std::endl;
 	return true;
 }
 
