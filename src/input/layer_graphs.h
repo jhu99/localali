@@ -2,6 +2,9 @@
 Author: Jialu Hu
 Date: 10.06.2012*/
 
+#ifndef LAYER_GRAPHS_H
+#define LAYER_GRAPHS_H
+
 #include <vector>
 #include <fstream>
 #include <iostream>
@@ -130,3 +133,5 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
   }
   return true;
 }
+
+#endif
