@@ -100,7 +100,7 @@ int main(int argc, char** argv)
   layergraph.read(myoption.layerfile,networks);
 
   //Test search implementation.
-  isearch.test(layergraph,networks);
+  //isearch.test(layergraph,networks);
   itree.readTree(myoption.treefile);
   t.stop();
   if(g_verbosity>=VERBOSE_ESSENTIAL)
