@@ -25,11 +25,11 @@ Description: Searching high-scoring subnetworks.
 template<typename GR, typename OP>
 class Tree
 {
-	private:
-	typedef GR Graph;
+private:
 	typedef OP Option;
+public:
+	typedef GR Graph;
 	TEMPLATE_GRAPH_TYPEDEFS(Graph);
-	public:
 	
 	/// Labels of the nodes.
 	typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
@@ -44,6 +44,8 @@ class Tree
 	Node root;
 	/// The labels for the tree nodes.
 	OrigLabelNodeMap node2label;
+	/// The nodes for the labels.
+	InvOrigLabelNodeMap label2node;
 	/// The lengths for the branches in this tree.
 	WeightEdgeMap branchmap;
 
@@ -60,6 +62,7 @@ template<typename GR, typename OP>
 Tree<GR,OP>::Tree()
 :g()
 ,node2label(g)
+,label2node()
 ,branchmap(g)
 {
 }
@@ -123,6 +126,7 @@ Tree<GR,OP>::constructTree(std::string sentence)
 				branch_weight=wordpipe.front();
 				wordpipe.pop_front();
 				Node node=g.addNode();
+				label2node[species_name]=node;
 				
 				constructor.push(species_name);
 				constructor.push(convert_i2st(g.id(node)));
@@ -138,6 +142,7 @@ Tree<GR,OP>::constructTree(std::string sentence)
 				branch_weight=wordpipe.front();
 				wordpipe.pop_front();
 				Node node=g.addNode();
+				label2node[species_name]=node;
 				
 				constructor.push(species_name);				
 				constructor.push(convert_i2st(g.id(node)));

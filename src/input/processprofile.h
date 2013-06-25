@@ -69,25 +69,31 @@ template<typename Option>
 bool
 ProcessProfile<Option>::getOption(Option& myoption)
 {
-  std::string mykey="network";
-  getArray(mykey,myoption.networkfiles);
-  //mykey="efile";
-  //getArray(mykey,myoption.blastfiles);
-  //mykey="nfile";
-  //getArray(mykey,myoption.nullfiles);
-  //mykey="gofile";
-  //getArray(mykey,myoption.associationfiles);
-  //mykey="alignmentfile";
-  //getKey(mykey,myoption.alignmentfile);
-  //mykey="avefunsimfile";
-  //getKey(mykey,myoption.avefunsimfile);
-  //mykey="scorefile";
-  //getKey(mykey,myoption.scorefile);
-  //mykey="logfile";
-  //getKey(mykey,myoption.logfile);
-  mykey="layers";
-  getKey(mykey,myoption.layerfile);
-  return true;
+	std::string mykey="folder";
+	std::string mystr,myfolder;
+	getKey(mykey,myfolder);
+	mykey="species";
+	getArray(mykey,myoption.speciesfiles);
+	for(unsigned i=0;i<myoption.speciesfiles.size();i++)
+	{
+		mystr.append(myfolder);
+		mystr.append(myoption.speciesfiles[i]);
+		mystr.append(".txt");
+		myoption.networkfiles.push_back(mystr);
+		mystr.clear();
+	}
+	mykey="layers";
+	getKey(mykey,myoption.layerfile);
+	mystr.append(myfolder);
+	mystr.append(myoption.layerfile);
+	myoption.layerfile=mystr;
+	mykey="tree";
+	getKey(mykey,myoption.treefile);
+	mystr.clear();
+	mystr.append(myfolder);
+	mystr.append(myoption.treefile);
+	myoption.treefile=mystr;
+	return true;
 } 
 
 template<typename Option>

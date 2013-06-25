@@ -16,7 +16,6 @@ Description: Major body
 #include "input/networkpool.h"
 #include "input/processprofile.h"
 #include "input/layer_graphs.h"
-#include "input/tree.h"
 #include "algorithm/subnet.h"
 #include "algorithm/search.h"
 
@@ -24,6 +23,7 @@ using namespace std;
 
 typedef struct _Option
 {
+  vector<std::string> speciesfiles;
   vector<std::string> networkfiles;
   std::string layerfile;
   std::string resultfolder;
@@ -39,7 +39,6 @@ typedef struct _Option
   _Option()
   {
     profile="./profile.txt";
-    treefile="./dataset/dip/3-way/tree.txt";
     numspecies=3;
     seedsize=5;
     seedtries=10;
@@ -60,6 +59,7 @@ typedef Search<InputGraph, MySubNet, LayerGraph, Option> MySearch;
 bool setParser(ArgParser& parser, Option& myoption)
 {
 	parser
+	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize)
@@ -89,7 +89,6 @@ int main(int argc, char** argv)
   InputGraph networks;
   LayerGraph layergraph;
   MySearch isearch(myoption);
-  MyTree itree;
   Timer t(false);
 
   g_verbosity=VERBOSE_ESSENTIAL;
@@ -100,8 +99,7 @@ int main(int argc, char** argv)
   layergraph.read(myoption.layerfile,networks);
 
   //Test search implementation.
-  //isearch.test(layergraph,networks);
-  itree.readTree(myoption.treefile);
+  isearch.test(layergraph,networks);
   t.stop();
   if(g_verbosity>=VERBOSE_ESSENTIAL)
   std::cerr <<"Elapsed time: "<< t <<std::endl;
