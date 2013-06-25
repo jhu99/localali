@@ -15,7 +15,8 @@ Description: Searching high-scoring subnetworks.
 #include <lemon/smart_graph.h>
 #include <lemon/connectivity.h>
 #include "verbose.h"
-//#include "input/tree.h"
+#include "input/tree.h"
+#include "algorithm/phylogeny.h"
 
 template<typename NP, typename SN, typename LG, typename OP>
 class Search
@@ -27,10 +28,15 @@ private:
 	typedef OP Option;
 	typedef typename LayerGraph::Graph Graph;
 	typedef typename SubNet::K_Spine K_Spine;
+	typedef typename SubNet::GraphData GraphData;
+	typedef Tree<Graph, Option> MyTree;
+	typedef Phylogeny<SubNet,MyTree> MyPhylogeny;
 public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes.
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
+  /// Conrresponding graphs of the tree nodes.
+  typedef typename Graph::template NodeMap<GraphData*> NodeGraphMap;
   /// Mapping from labels to original nodes.
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 
@@ -40,9 +46,12 @@ public:
     int _numSamples;
     int _numExtention;
     int _numConnected;
+    
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
     typename std::vector<SubNet*> refinedSeeds;
+    NodeGraphMap *node2graph;
+    MyPhylogeny _phylogeny;
 	Search(Option&);
 	~Search(){};
 	void test(LayerGraph&,NetworkPool&);
@@ -64,6 +73,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,refinedSeeds()
+,_phylogeny(myoption.treefile)
 {
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
@@ -71,6 +81,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_numSamples=myoption.numsamples;
 	_numConnected=myoption.numconnected;
 	_numExtention=myoption.numextention;
+	_phylogeny._speciesfiles=myoption.speciesfiles;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -90,6 +101,7 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 			if(checkConnection(subnet,layergraph,networks))
 			{
 				subnet.output(layergraph);
+				_phylogeny.initial(subnet);
 				numQualified++;
 			}
 		}
@@ -99,6 +111,7 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 	}
 	std::cout <<numAll<<" subnets have been found for all seeds."<<std::endl;
 }
+
 template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::searchCandidates(std::vector<Node>& candidates,
