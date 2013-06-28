@@ -17,6 +17,7 @@ Description: Searching high-scoring subnetworks.
 #include "verbose.h"
 #include "input/tree.h"
 #include "algorithm/phylogeny.h"
+#include "algorithm/simulatedannealing.h"
 
 template<typename NP, typename SN, typename LG, typename OP>
 class Search
@@ -31,6 +32,7 @@ private:
 	typedef typename SubNet::GraphData GraphData;
 	typedef Tree<Graph, Option> MyTree;
 	typedef Phylogeny<SubNet,MyTree> MyPhylogeny;
+	typedef SimulatedAnnealing<MyPhylogeny,Option> MySimulatedAnnealing;
 public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes.
@@ -90,6 +92,7 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 {
 	searchSeeds(layergraph,networks);
 	int numAll=0;
+	MySimulatedAnnealing simulatedannealing;
 	for(unsigned i=0;i<refinedSeeds.size();i++)
 	{
 		int numQualified=0;
@@ -101,7 +104,8 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 			if(checkConnection(subnet,layergraph,networks))
 			{
 				subnet.output(layergraph);
-				_phylogeny.initial(subnet);
+				_phylogeny.initial(subnet,layergraph);
+				simulatedannealing.run(_phylogeny);
 				numQualified++;
 			}
 		}
@@ -313,7 +317,7 @@ Search<NP,SN,LG,OP>::checkConnection(SubNet& subnet,LayerGraph& layergraph,Netwo
 	int numConnected=0;
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		if(subnet.subgraphs[i]->g->edgeNum()<(subnet.subgraphs[i]->g->nodeNum()-1))continue;
+		if(subnet.subgraphs[i]->edgeNum<(subnet.subgraphs[i]->nodeNum-1))continue;
 		numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)

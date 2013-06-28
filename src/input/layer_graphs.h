@@ -18,7 +18,8 @@ private:
   
   typedef NP NetworkPool;
 public:
-  typedef GR Graph;
+  typedef typename NetworkPool::Graph Graph;
+  
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
@@ -37,6 +38,8 @@ public:
   VerifiedNodeMap validnodemap;
   DensitySeq density;
   EdgeNumMap edgenum;
+  int nodeNum;
+  int edgeNum;
 
   Layer_graphs();
   ~Layer_graphs(){};
@@ -52,6 +55,8 @@ Layer_graphs<GR,NP>::Layer_graphs()
   ,validnodes()
   ,density()
   ,edgenum()
+  ,nodeNum(0)
+  ,edgeNum(0)
 {
 }
 
@@ -110,6 +115,7 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
       node2label.set(node1,protein1);
       label2node[protein1] = node1;
       //insert new node
+      nodeNum++;
     }
     if(label2node.find(protein2)!=label2node.end())
     {
@@ -121,15 +127,17 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
       node2label.set(node2,protein2);
       label2node[protein2]=node2;
       //insert new node
+      nodeNum++;
     }
     graph.addEdge(node1,node2);
     edgenum[edgelabel]=1;
+    edgeNum++;
   }
   if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
   {
 	std::cerr <<filename <<" has been read successfully!"<<std::endl;
-	std::cerr <<"# of proteins:"<< graph.nodeNum()<<"\t"<<std::endl;
-	std::cerr <<"# of interactions:"<<graph.edgeNum()<<std::endl;
+	std::cerr <<"# of proteins:"<< nodeNum<<"\t"<<std::endl;
+	std::cerr <<"# of interactions:"<< edgeNum <<std::endl;
   }
   return true;
 }

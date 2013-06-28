@@ -50,7 +50,7 @@ typedef struct _Option
 
 typedef lemon::ListGraph Graph;
 typedef lemon::SmartGraph BpGraph;
-typedef Tree<BpGraph, Option> MyTree;
+typedef Tree<Graph, Option> MyTree;
 typedef NetworkPool<Graph,BpGraph> InputGraph;
 typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
 typedef SubNet<InputGraph,LayerGraph> MySubNet;
