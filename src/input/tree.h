@@ -21,7 +21,8 @@ Description: Searching high-scoring subnetworks.
 #include <lemon/connectivity.h>
 #include "verbose.h"
 #include "string.h"
-//#include "algorithm/function.h"
+#include "algorithm/score.h"
+#include "algorithm/function.h"
 
 template<typename GR, typename OP>
 class Tree
@@ -38,6 +39,7 @@ public:
 	typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 	/// Weights on original edges.
 	typedef typename Graph::template EdgeMap<float> WeightEdgeMap;
+	typedef typename Graph::template EdgeMap<Score> ScoreEdgeMap;
 
 	/// Hold the topology of this tree.
 	Graph g;
@@ -47,8 +49,10 @@ public:
 	OrigLabelNodeMap node2label;
 	/// The nodes for the labels.
 	InvOrigLabelNodeMap label2node;
-	/// The lengths for the branches in this tree.
+	/// The lengths for the branches in the tree.
 	WeightEdgeMap branchmap;
+	/// The local alignment score for each branch in the tree.
+	ScoreEdgeMap  scoremap;
 
 	Tree();
 	~Tree(){};
@@ -63,6 +67,7 @@ Tree<GR,OP>::Tree()
 ,node2label(g)
 ,label2node()
 ,branchmap(g)
+,scoremap(g)
 {
 }
 template<typename GR, typename OP>
