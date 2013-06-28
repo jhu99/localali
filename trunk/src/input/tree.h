@@ -21,6 +21,7 @@ Description: Searching high-scoring subnetworks.
 #include <lemon/connectivity.h>
 #include "verbose.h"
 #include "string.h"
+//#include "algorithm/function.h"
 
 template<typename GR, typename OP>
 class Tree
@@ -53,8 +54,6 @@ public:
 	~Tree(){};
 	bool readTree(std::string);
 	bool constructTree(std::string);
-	std::string convert_f2st(float);
-	std::string convert_i2st(int);
 	void compressNodes(std::stack<std::string>&);
 };
 
@@ -129,7 +128,7 @@ Tree<GR,OP>::constructTree(std::string sentence)
 				label2node[species_name]=node;
 				
 				constructor.push(species_name);
-				constructor.push(convert_i2st(g.id(node)));
+				constructor.push(convert_num2str(g.id(node)));
 				constructor.push(branch_weight);
 			}
 		}
@@ -145,7 +144,7 @@ Tree<GR,OP>::constructTree(std::string sentence)
 				label2node[species_name]=node;
 				
 				constructor.push(species_name);				
-				constructor.push(convert_i2st(g.id(node)));
+				constructor.push(convert_num2str(g.id(node)));
 				constructor.push(branch_weight);
 			}
 			
@@ -164,24 +163,6 @@ Tree<GR,OP>::constructTree(std::string sentence)
 		}
 	}
 	return true;
-}
-
-template<typename GR, typename OP>
-std::string
-Tree<GR,OP>::convert_f2st(float num)
-{
-	std::ostringstream buff;
-	buff<<num;
-    return buff.str();
-}
-
-template<typename GR, typename OP>
-std::string
-Tree<GR,OP>::convert_i2st(int num)
-{
-	std::ostringstream buff;
-	buff<<num;
-    return buff.str();
 }
 
 template<typename GR, typename OP>
@@ -208,7 +189,7 @@ Tree<GR,OP>::compressNodes(std::stack<std::string>& constructor)
 
 	node3=g.addNode();
 	constructor.push("-");
-	constructor.push(convert_i2st(g.id(node3)));
+	constructor.push(convert_num2str(g.id(node3)));
 	e1=g.addEdge(node1,node3);
 	e2=g.addEdge(node2,node3);
 	branchmap.set(e1,weight1);

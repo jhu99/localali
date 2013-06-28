@@ -17,10 +17,10 @@ using namespace lemon;
 template<typename GR, typename BP>
 class NetworkPool
 {
+
 public:
   typedef GR Graph;
   typedef BP BpGraph;
-public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   /// Labels of the nodes

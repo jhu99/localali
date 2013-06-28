@@ -4,31 +4,37 @@ Date: Jun. 11, 2013
 File name: algorithm/subnet.h
 Description: Data structure of a conserved subnetwork.
 **/
+#ifndef SUBNET_H_
+#define SUBNET_H_
 
 #include <vector>
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
 #include "macro.h"
+#include "algorithm/function.h"
 
 template<typename NP, typename LG>
 class SubNet
 {
 private:
   typedef NP NetworkPool;
-  typedef LG LayerGraph;
-  typedef typename LayerGraph::Graph Graph;
 public:
+  typedef LG LayerGraph;
+  typedef typename NetworkPool::Graph Graph;
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
   /// Mapping from labels to original nodes
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
+  typedef std::unordered_map<std::string, typename Graph::Edge> InvLabelEdgeMap;
 
   unsigned _numSpecies;// The number of observed species.
   unsigned _seedSize;
+  
   typedef struct _K_Spine
   {
 	  std::array<Node,RESERVED_SPECIES> data;
@@ -39,24 +45,49 @@ public:
 	  }
 	  ~_K_Spine(){};
   }K_Spine;
+  
   typedef struct _GraphData
   {
 	  Graph *g;
+	  int nodeNum;
+	  int edgeNum;
 	  OrigLabelNodeMap *node2label;
 	  InvOrigLabelNodeMap *label2node;
+	  InvLabelEdgeMap *label2edge;
+	  
+	  std::vector<unsigned> offsprings;
 	  _GraphData()
+	  :nodeNum(0)
+	  ,edgeNum(0)
 	  {
 		  g=new Graph();
 		  node2label=new OrigLabelNodeMap(*g);
 		  label2node=new InvOrigLabelNodeMap();
+		  label2edge=new InvLabelEdgeMap();
 	  }
 	  ~_GraphData()
 	  {
 		  delete g;
 		  delete node2label;
 		  delete label2node;
+		  delete label2edge;
+	  }
+	  std::string formEdgeLabel(Node& node1,Node& node2)
+	  {
+		  std::string label;
+		  if(node2 < node1)
+		  {
+			  label.append(convert_num2str(g->id(node2)));
+			  label.append(convert_num2str(g->id(node1)));
+		  }else
+		  {
+			  label.append(convert_num2str(g->id(node1)));
+			  label.append(convert_num2str(g->id(node2)));
+		  }
+		  return label;
 	  }
   }GraphData;
+    
   std::vector<K_Spine> net_spines;
   std::vector<GraphData*> subgraphs;
 
@@ -69,11 +100,11 @@ public:
 
 template<typename NP, typename LG>
 SubNet<NP,LG>::SubNet(unsigned num1, unsigned num2):
-net_spines()
+net_spines(),
+subgraphs()
 {
 	_numSpecies=num1;
 	_seedSize=num2;
-	//initSubNet();
 }
 
 template<typename NP, typename LG>
@@ -115,6 +146,7 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
 		GraphData* graphdata = new GraphData();
+		graphdata->offsprings.push_back(i);
 		std::vector<std::string> nodeset;
 		for(unsigned j=0;j<_seedSize;++j)
 		{
@@ -122,6 +154,7 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 			if(find(nodeset.begin(),nodeset.end(),element)!=nodeset.end())continue;
 			nodeset.push_back(element);
 			Node node=graphdata->g->addNode();
+			graphdata->nodeNum++;
 			graphdata->node2label->set(node,element);
 			(*graphdata->label2node)[element]=node;
 			assert((*networks.getGraph(i)->invIdNodeMap).find(element)!=(*networks.getGraph(i)->invIdNodeMap).end());
@@ -147,6 +180,7 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 				 if(networks.getGraph(i)->interactionmap.find(keystr)
 				 ==networks.getGraph(i)->interactionmap.end())continue;
 				 graphdata->g->addEdge(node1,node2);
+				 graphdata->edgeNum++;
 			}
 		}
 		subgraphs.push_back(graphdata);
@@ -154,3 +188,4 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 
 	return true;
 }
+#endif
