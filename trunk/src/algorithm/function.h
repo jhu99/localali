@@ -6,7 +6,7 @@ Description: Searching high-scoring subnetworks.
 **/
 
 #ifndef FUNCTION_H_
-#define FUNCTION_H
+#define FUNCTION_H_
 
 #include <vector>
 #include <fstream>
