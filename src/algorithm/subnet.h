@@ -26,9 +26,11 @@ public:
   typedef LG LayerGraph;
   typedef typename NetworkPool::Graph Graph;
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  /// Labels of the nodes
+  /// Labels of the nodes.
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
-  /// Mapping from labels to original nodes
+  /// Degree of the nodes.
+  typedef typename Graph::template NodeMap<int> DegreeMap;
+  /// Mapping from labels to original nodes.
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
   typedef std::unordered_map<std::string, typename Graph::Edge> InvLabelEdgeMap;
 
@@ -51,6 +53,8 @@ public:
 	  Graph *g;
 	  int nodeNum;
 	  int edgeNum;
+	  int maxDegree;
+	  DegreeMap *node2degree;
 	  OrigLabelNodeMap *node2label;
 	  InvOrigLabelNodeMap *label2node;
 	  InvLabelEdgeMap *label2edge;
@@ -61,6 +65,7 @@ public:
 	  ,edgeNum(0)
 	  {
 		  g=new Graph();
+		  node2degree=new DegreeMap(*g);
 		  node2label=new OrigLabelNodeMap(*g);
 		  label2node=new InvOrigLabelNodeMap();
 		  label2edge=new InvLabelEdgeMap();
@@ -68,6 +73,7 @@ public:
 	  ~_GraphData()
 	  {
 		  delete g;
+		  delete node2degree;
 		  delete node2label;
 		  delete label2node;
 		  delete label2edge;
@@ -85,6 +91,38 @@ public:
 			  label.append(convert_num2str(g->id(node2)));
 		  }
 		  return label;
+	  }
+	  void deleteEdge(Edge& myedge,std::string& edgelabel)
+	  {
+		  Node node1,node2;
+		  node1=g->u(myedge);
+		  node2=g->v(myedge);
+		  int degree1,degree2;
+		  degree1=(*node2degree)[node1]--;
+		  degree2=(*node2degree)[node2]--;
+		  edgeNum--;
+		  g->erase(myedge);
+		  label2edge->erase(edgelabel);
+		  if(degree1==maxDegree || degree2==maxDegree)
+		  {
+			  maxDegree--;
+			  for(NodeIt node(*g);node!=lemon::INVALID;++node)
+			  {
+				  if((*node2degree)[node]>maxDegree)maxDegree++;
+			  }
+		  }
+	  }
+	  void addEdge(Node& node1,Node& node2)
+	  {
+		  int degree1,degree2;
+		  std::string edgelabel;
+		  degree1=++(*node2degree)[node1];
+		  degree2=++(*node2degree)[node2];
+		  edgeNum++;
+		  Edge newedge=g->addEdge(node1,node2);
+		  if(degree1>maxDegree || degree2>maxDegree)maxDegree++;
+		  edgelabel=formEdgeLabel(node1,node2);
+		  (*label2edge)[edgelabel]=newedge;
 	  }
   }GraphData;
     
@@ -185,7 +223,6 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 		}
 		subgraphs.push_back(graphdata);
 	}
-
 	return true;
 }
 #endif

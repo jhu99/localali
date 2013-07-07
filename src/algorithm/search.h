@@ -1,7 +1,7 @@
 /**
 Author: Jialu Hu
 Date: Jun. 11, 2013
-File name: algorithm/subnet.h
+File name: algorithm/search.h
 Description: Searching high-scoring subnetworks.
 **/
 
@@ -75,7 +75,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,refinedSeeds()
-,_phylogeny(myoption.treefile)
+,_phylogeny(myoption.treefile,myoption.seedsize+myoption.seedtries)
 {
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
@@ -104,9 +104,11 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 			if(checkConnection(subnet,layergraph,networks))
 			{
 				subnet.output(layergraph);
-				_phylogeny.initial(subnet,layergraph);
-				simulatedannealing.run(_phylogeny);
+				//_phylogeny.initial(subnet,layergraph);
+				//simulatedannealing.run(_phylogeny);
 				numQualified++;
+				if(g_verbosity>=VERBOSE_ESSENTIAL)
+					std::cout << "--------------------------------------" << std::endl;
 			}
 		}
 		numAll+=numQualified;
@@ -183,13 +185,14 @@ Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet,std::vector<Node>& candidate
 	int dice_roll = distribution(generator)%optimalcandidates.size();
 	Node node=optimalcandidates[dice_roll];
 	K_Spine pspine;
-    if(!sampleKSpine(node,pspine,layergraph,networks))
-    {
+	if(!sampleKSpine(node,pspine,layergraph,networks))
+	{
 		std::cerr <<"Invalid sample node!"<<std::endl;
 		return false;
 	}
 	subnet.net_spines.push_back(pspine);
 	searchCandidates(candidates,pspine,layergraph,networks);
+	
 	return true;
 }
 
@@ -212,8 +215,8 @@ Search<NP,SN,LG,OP>::searchSeeds(LayerGraph& layergraph,NetworkPool& networks)
 		{
 			refinedSeeds.push_back(mysubnet);
 		}
-    }
-    std::cerr << "There are a total of "<< refinedSeeds.size() <<" refined seeds."<< std::endl;
+	}
+	std::cerr << "There are a total of "<< refinedSeeds.size() <<" refined seeds."<< std::endl;
 }
 
 /// Randomly sample a d subnet from G_h

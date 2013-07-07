@@ -4,10 +4,3 @@ species Drosophila_melanogaster
 species Saccharomyces_cerevisiae
 layers  input_blast.txt
 tree    tree.txt
-#network ./dataset/dip/test/test1.txt
-#network ./dataset/dip/test/test2.txt
-#network ./dataset/dip/test/test3.txt
-#network ./dataset/dip/test/test4.txt
-#network ./dataset/dip/test/test5.txt
-#layers  ./dataset/dip/test/test_blast.txt
-

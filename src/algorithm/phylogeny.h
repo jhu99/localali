@@ -4,18 +4,21 @@ Date: Jun. 25, 2013
 File name: algorithm/phylogeny.h
 Description: Data structure of the phylogeny of the observed functional modules.
 **/
+#pragma once
 
 #ifndef PHYLOGENY_H_
 #define PHYLOGENY_H_
 
 #include <vector>
 #include <array>
+#include <string>
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
 #include "macro.h"
+#include "tree.h"
 
 template<typename SN, typename TR>
 class Phylogeny
@@ -23,36 +26,51 @@ class Phylogeny
 private:
 	typedef SN SubNet;
 	typedef TR Tree;
-	typedef typename SubNet::GraphData GraphData;
 	typedef typename SubNet::LayerGraph LayerGraph;
+	typedef typename Tree::MatchingNodeMap MatchingNodeMap;
+public:
+	typedef typename SubNet::GraphData GraphData;
 	typedef typename Tree::Graph Graph;
 	TEMPLATE_GRAPH_TYPEDEFS(Graph);
-	//typedef struct _Distance
-	//{
-	//}Distance;
-public:
+	typedef struct _DeltaStructure
+	{
+		Node treenode;
+		Node nodeA;
+		Node nodeB;
+		std::string edgelabel;
+		float delta;
+		Score updatedScores[3];// The neighbors of a node in a binary tree is upto 3.
+		/// maxDegree and node degree will change along with the inference.
+	}DeltaStructure;
+
 	std::default_random_engine generator;
-    std::uniform_int_distribution<int> distribution;
+	std::uniform_int_distribution<int> distribution;
 	Tree _tree;
+	int _dsize;
 	std::vector<std::string> _speciesfiles;
 	std::vector<Node> internalNode;
 	std::vector<Node> externalNode;
 	std::unordered_map<int,GraphData*> node2graph;
-    
-	Phylogeny(std::string&);
+
+	Phylogeny(std::string&,int dsize);//dsize is the number of k-spines.
 	~Phylogeny(){};
 	bool initial(SubNet&,LayerGraph&);
 	bool initialExternalNodes(SubNet&);
-	bool interfere();
+	bool interfere(DeltaStructure&);
+	bool initialBranchWeight();
+	bool computeBranchWeight(EdgeIt&,Score&);
+	bool computeScore(Score&,MatchingNodeMap*, GraphData*, GraphData*,float&);
 	bool existNode(std::vector<std::string>&,GraphData*);
+	bool computeDist();
 	GraphData* constructInternalNodes(Node&,SubNet&,LayerGraph&);
 };
 
 template<typename SN, typename TR>
-Phylogeny<SN,TR>::Phylogeny(std::string& filename)
+Phylogeny<SN,TR>::Phylogeny(std::string& filename,int dsize)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,_tree()
+,_dsize(dsize)
 ,node2graph()
 {
 	_tree.readTree(filename);
@@ -60,9 +78,8 @@ Phylogeny<SN,TR>::Phylogeny(std::string& filename)
 
 template<typename SN, typename TR>
 bool
-Phylogeny<SN,TR>::interfere()
+Phylogeny<SN,TR>::interfere(DeltaStructure& deltaStr)
 {
-	//float delta=0.0;
 	int dice_roll=distribution(generator)%internalNode.size();
 	int upperId,dice_1,dice_2;
 	Node intNode = internalNode[dice_roll];
@@ -79,18 +96,47 @@ Phylogeny<SN,TR>::interfere()
 	}
 	nodeB = graphdata->g->nodeFromId(dice_2);
 	std::string edgelabel=graphdata->formEdgeLabel(nodeA,nodeB);
+	deltaStr.treenode=intNode;
+	deltaStr.nodeA=nodeA;
+	deltaStr.nodeB=nodeB;
+	deltaStr.edgelabel=edgelabel;
 	if(graphdata->label2edge->find(edgelabel)!=graphdata->label2edge->end())
 	{
 		//delete edge
-		graphdata->g->erase(graphdata->label2edge->find(edgelabel)->second);
-		graphdata->label2edge->erase(edgelabel);
+		Edge myedge=graphdata->label2edge->find(edgelabel)->second;
+		graphdata->deleteEdge(myedge,edgelabel);
 	}
 	else{
 		// add edge
-		Edge newedge=graphdata->g->addEdge(nodeA,nodeB);
-		(*graphdata->label2edge)[edgelabel]=newedge;
+		graphdata->addEdge(nodeA,nodeB);
 	}
-	
+
+	// Compute the gap between the two scores, but without changes of their original score attritubtion.
+	GraphData *ancestor, *descendant;
+	Score deltaScore;
+	int i=0;
+	for(IncEdgeIt it(_tree.g,intNode);it!=lemon::INVALID;++it,++i)
+	{
+		Score updatedScore;
+		Node neighbor=_tree.g.runningNode(it);
+		descendant=node2graph[_tree.g.id(neighbor)];
+		if(neighbor<intNode)
+		{
+			ancestor=graphdata;
+		}else
+		{
+			ancestor=descendant;
+			descendant=graphdata;
+		}
+		computeScore(updatedScore,_tree.matchingedgemap[it],ancestor,descendant,_tree.branchmap[it]);
+		deltaScore+=updatedScore;
+		deltaScore-=_tree.scoremap[it];
+		deltaStr.updatedScores[i]=updatedScore;
+	}
+	deltaStr.delta=deltaScore.sumup();
+
+	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	std::cout << deltaStr.delta << std::endl;
 	return true;
 }
 
@@ -105,6 +151,16 @@ Phylogeny<SN,TR>::initialExternalNodes(SubNet& subnet)
 		node2graph[_tree.g.id(node)]=subnet.subgraphs[i];
 		externalNode.push_back(node);
 	}
+	return true;
+}
+
+template<typename SN, typename TR>
+bool
+Phylogeny<SN,TR>::computeDist()
+{
+	_tree.computeDistEvolution(_dsize);
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+		std::cout << _tree.overallScore << std::endl;
 	return true;
 }
 
@@ -128,6 +184,126 @@ Phylogeny<SN,TR>::initial(SubNet& subnet,LayerGraph& layergraph)
 	GraphData* graphdata=constructInternalNodes(_tree.root,subnet,layergraph);
 	node2graph[_tree.g.id(_tree.root)]=graphdata;
 	internalNode.push_back(_tree.root);
+	initialBranchWeight();
+	return true;
+}
+
+template<typename SN, typename TR>
+bool
+Phylogeny<SN,TR>::initialBranchWeight()
+{
+	for(NodeIt in(_tree.g);in!=lemon::INVALID;++in)
+	{
+		GraphData* graphdata=node2graph[_tree.g.id(in)];
+		for(NodeIt node(*graphdata->g);node!=lemon::INVALID;++node)
+		{
+			graphdata->node2degree->set(node,0);
+		}
+		graphdata->maxDegree=0;
+	}
+	for(EdgeIt ie(_tree.g);ie!=lemon::INVALID;++ie)
+	{
+		Score myscore;
+		computeBranchWeight(ie,myscore);
+		_tree.scoremap[ie]=myscore;
+	}
+	return true;
+}
+
+template<typename SN, typename TR>
+bool
+Phylogeny<SN,TR>::computeScore(Score& score,MatchingNodeMap* matchingmap, GraphData* ancestor, GraphData* descedant,float& branchweight)
+{
+	int mykey;
+	for(NodeIt anode(*ancestor->g);anode!=lemon::INVALID;++anode)
+	{
+		int maxdegree=ancestor->maxDegree;
+		if(0==maxdegree)continue;
+		mykey=ancestor->g->id(anode);
+		int numElement=matchingmap->count(mykey);
+		if(numElement==1)
+		/// Protein duplication.
+		{
+			score.fscore[0]+=(1-static_cast<float>((*ancestor->node2degree)[anode])/maxdegree)*branchweight;
+		}else if(numElement==2)
+		/// Protein mutation.
+		{
+			score.fscore[1]+=(1-static_cast<float>((*ancestor->node2degree)[anode])/maxdegree)*branchweight;
+		}
+	}
+	/// The number of conserved edges.
+	int conNum=0;
+	for(EdgeIt edge(*ancestor->g);edge!=lemon::INVALID;++edge)
+	{
+		bool finderFlag(false);
+		int id1,id2;
+		Node node1,node2,node3,node4;
+		node1=ancestor->g->u(edge);
+		node2=ancestor->g->v(edge);
+		id1=ancestor->g->id(node1);
+		id2=ancestor->g->id(node2);
+		auto range1=matchingmap->equal_range(id1);
+		auto range2=matchingmap->equal_range(id2);
+		for(typename MatchingNodeMap::iterator it1=range1.first;it1!=range1.second;++it1)
+		{
+			node3=it1->second;
+			for(typename MatchingNodeMap::iterator it2=range2.first;it2!=range2.second;++it2)
+			{
+				node4=it2->second;
+				std::string edgelabel=descedant->formEdgeLabel(node3,node4);
+				if(descedant->label2edge->find(edgelabel)!=descedant->label2edge->end())
+				{
+					conNum++;
+					finderFlag=true;
+					break;
+				}
+			}
+			if(finderFlag)break;
+		}
+	}
+	// Interaction deletion.
+	score.fscore[2]=_tree._beta*branchweight*(ancestor->edgeNum-conNum);
+	// Interaction insertion.
+	score.fscore[3]=_tree._beta*branchweight*(descedant->edgeNum-conNum);
+	return true;
+}
+
+template<typename SN, typename TR>
+bool
+Phylogeny<SN,TR>::computeBranchWeight(EdgeIt& ie,Score& score)
+{
+	typedef typename SubNet::InvOrigLabelNodeMap::iterator ItInvOrigLabelNodeMap;
+	typedef typename Tree::MatchingNodeMap MatchingNodeMap;
+	
+	Node node1,node2,anode,dnode;//node1, node2 are tree nodes, anode and dnode are graph nodes.
+	int mykey,id1,id2;
+	MatchingNodeMap* matchingmap = new MatchingNodeMap();
+	GraphData *descedant, *ancestor;
+	node1=_tree.g.u(ie);
+	id1=_tree.g.id(node1);
+	node2=_tree.g.v(ie);
+	id2=_tree.g.id(node2);
+	if(node2<node1)
+	{
+		descedant=node2graph[id2];
+		ancestor=node2graph[id1];
+	}
+	else
+	{
+		descedant=node2graph[id1];
+		ancestor=node2graph[id2];
+	}
+	
+	for(ItInvOrigLabelNodeMap it=descedant->label2node->begin();it!=descedant->label2node->end();++it)
+	{
+		std::string protein=it->first;
+		dnode=it->second;
+		anode=(*ancestor->label2node)[protein];
+		mykey=ancestor->g->id(anode);
+		matchingmap->insert(std::make_pair(mykey,dnode));// A general error may look like: std::make_pair<int, Node>(mykey,dnode)
+	}
+	_tree.matchingedgemap[ie]=matchingmap;
+	computeScore(score, matchingmap, ancestor, descedant,_tree.branchmap[ie]);
 	return true;
 }
 
@@ -148,6 +324,8 @@ Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet& subnet,LayerGrap
 			sondata=constructInternalNodes(rnode,subnet,layergraph);
 			node2graph[_tree.g.id(rnode)]=sondata;
 			internalNode.push_back(rnode);
+		}else{
+			sondata=node2graph[_tree.g.id(rnode)];
 		}
 		for(unsigned i=0;i<sondata->offsprings.size();++i)
 			graphdata->offsprings.push_back(sondata->offsprings[i]);
@@ -174,6 +352,7 @@ Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet& subnet,LayerGrap
 		for(std::vector<std::string>::iterator it=xspine.begin();it!=xspine.end();++it)
 		{
 			(*graphdata->label2node)[*it]=gnode;
+			///There are many labels for each internal node.
 		}
 		for(SpineList::iterator it=incSpines.begin();it!=incSpines.end();++it)
 		{
@@ -183,7 +362,7 @@ Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet& subnet,LayerGrap
 			{
 				(*graphdata->label2node)[xspine[i]]=gnode;
 			}
-			incSpines.erase(it);
+			it=incSpines.erase(it);
 		}
 	}
 	return graphdata;

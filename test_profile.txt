@@ -1,0 +1,6 @@
+folder ./dataset/dip/test/
+species test1
+species test2
+species test3
+layers  test_blast.txt
+tree    tree.txt

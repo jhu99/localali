@@ -39,12 +39,22 @@ public:
 	typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 	/// Weights on original edges.
 	typedef typename Graph::template EdgeMap<float> WeightEdgeMap;
+	/// Evolutionary score for each branch.
 	typedef typename Graph::template EdgeMap<Score> ScoreEdgeMap;
+	/// Nodes mapping for a pair of functional modules.
+	typedef std::unordered_multimap<int, typename Graph::Node> MatchingNodeMap;
+	/// Nodes matching map for each branch.
+	typedef typename Graph::template EdgeMap<MatchingNodeMap*> MatchingEdgeMap;
 
 	/// Hold the topology of this tree.
 	Graph g;
 	/// Root of the evolutionary tree.
 	Node root;
+	/// The distance score for the evolutionary tree.
+	Score distEvolution;
+	/// The evolutionary rate for interaction deletion and insertion events.
+	float _beta;
+	float overallScore;
 	/// The labels for the tree nodes.
 	OrigLabelNodeMap node2label;
 	/// The nodes for the labels.
@@ -53,21 +63,27 @@ public:
 	WeightEdgeMap branchmap;
 	/// The local alignment score for each branch in the tree.
 	ScoreEdgeMap  scoremap;
+	/// Nodes matching map for each branch.
+	MatchingEdgeMap matchingedgemap; 
 
-	Tree();
+	Tree(float beta);
 	~Tree(){};
 	bool readTree(std::string);
 	bool constructTree(std::string);
 	void compressNodes(std::stack<std::string>&);
+	bool computeDistEvolution(int);
 };
 
 template<typename GR, typename OP>
-Tree<GR,OP>::Tree()
+Tree<GR,OP>::Tree(float beta=1.5)
 :g()
+,distEvolution()
+,_beta(beta)
 ,node2label(g)
 ,label2node()
 ,branchmap(g)
 ,scoremap(g)
+,matchingedgemap(g)
 {
 }
 template<typename GR, typename OP>
@@ -203,4 +219,16 @@ Tree<GR,OP>::compressNodes(std::stack<std::string>& constructor)
 	return;
 }
 
+template<typename GR, typename OP>
+bool
+Tree<GR,OP>::computeDistEvolution(int dsize)
+{
+	for(EdgeIt ie(g);ie!=lemon::INVALID;++ie)
+	{
+		distEvolution+=scoremap[ie];
+	}
+	float sumDist=distEvolution.sumup();
+	overallScore=dsize/sumDist;
+	return true;
+}
 #endif
