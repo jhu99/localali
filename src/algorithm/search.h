@@ -132,11 +132,13 @@ Search<NP,SN,LG,OP>::searchCandidates(std::vector<Node>& candidates,
 		innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
 	}
 	networks.getNeighbors(innerproteins,neighborproteins);
+	candidates.clear();
 	for(unsigned j=0;j<neighborproteins.size();++j)
 	{
 		std::string protein=neighborproteins[j];
 		Node neighbor=layergraph.label2node[protein];
 		int neighborid=layergraph.graph.id(neighbor);
+		if(find(pspine.data.begin(),pspine.data.begin()+_numSpecies,neighbor))continue;
 		if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
 		candidates.push_back(neighbor);
 	}
@@ -239,6 +241,7 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 		}
 		else
 		{
+			/// choose the optimal neighbor
 			//std::vector<Node> optimalcandidates;
 			//std::unordered_map<int,int> candidatesmap;
 			//int maxnum=1;
@@ -259,6 +262,7 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 				//if(it->second==maxnum)
 					//optimalcandidates.push_back(layergraph.graph.nodeFromId(it->first));
 			//}
+			/// randomly sample a neighbor in candidates.
 			dice_roll = distribution(generator)%candidates.size();
 			node=candidates[dice_roll];
 		}
@@ -277,21 +281,6 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 			std::cout << std::endl;
 		}
 		searchCandidates(candidates, pspine, layergraph, networks);
-		//std::vector<std::string> innerproteins;
-		//std::vector<std::string> neighborproteins;
-		//for(unsigned j=0;j<_numSpecies;j++)
-		//{
-			//innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
-		//}
-		//networks.getNeighbors(innerproteins,neighborproteins);
-		//for(unsigned j=0;j<neighborproteins.size();++j)
-		//{
-			//std::string protein=neighborproteins[j];
-			//Node neighbor=layergraph.label2node[protein];
-			//int neighborid=layergraph.graph.id(neighbor);
-			//if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
-			//candidates.push_back(neighbor);
-		//}
 	    subnet.net_spines.push_back(pspine);
 	}
 	subnet.induceSubgraphs(networks,layergraph);
