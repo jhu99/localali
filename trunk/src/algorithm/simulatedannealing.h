@@ -5,6 +5,7 @@ File name: algorithm/simulatedannealing.h
 Description: search an optimal solution for internal nodes.
 **/
 
+#pragma once
 #ifndef SIMULATEDANNEALING_H_
 #define SIMULATEDANNEALING_H_
 
@@ -28,19 +29,28 @@ class SimulatedAnnealing
 private:
 	typedef PH Phylogeny;
 	typedef OP Option;
+	typedef typename Phylogeny::DeltaStructure DeltaStructure;
+	typedef typename Phylogeny::Graph Graph;
+	typedef typename Phylogeny::GraphData GraphData;
+	TEMPLATE_GRAPH_TYPEDEFS(Graph);
 public:
 	float _tmax;
-    float _tmin;
-    unsigned _Kmax;
-    unsigned _Nmax;
-    float _k;
+	float _tmin;
+	unsigned _Kmax;
+	unsigned _Nmax;
+	float _k;
 	SimulatedAnnealing();
 	~SimulatedAnnealing(){};
 	void run(Phylogeny&);
 };
 
 template<typename PH, typename OP>
-SimulatedAnnealing<PH,OP>::SimulatedAnnealing()
+SimulatedAnnealing<PH,OP>::SimulatedAnnealing():
+_tmax(100),
+_tmin(10),
+_Kmax(10),
+_Nmax(100),
+_k(0.05)
 {
 }
 
@@ -55,19 +65,42 @@ SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
 	std::default_random_engine generator(seed);
 	std::uniform_real_distribution<float> distribution(0.0,1.0);
 	while(k<=_Kmax)
-    {
-		t = t-step;
+	{
+		t = t-step;// assert(t>_tmin);
 		float beta = 1.0/(_k*t);
 		for(unsigned n=0;n<_Nmax;++n)
 		{
-			float delta = 0.0;
-			if(!phylogeny.interfere())continue;
-			if(delta>0 || distribution(generator)<exp(beta*delta))
+			DeltaStructure deltaData;
+			if(!phylogeny.interfere(deltaData))continue;
+			if(g_verbosity>=VERBOSE_ESSENTIAL)
+				std::cout <<deltaData.delta <<"\t" << exp(beta*deltaData.delta) <<"\n";
+			if(deltaData.delta>0 || distribution(generator)<exp(beta*deltaData.delta))
 			{
-				// update current state to the neighbor state.
+				// update current state to the neighbor state and its interaction evolutionary score.
+				int i=0;
+				for(IncEdgeIt it(phylogeny._tree.g,deltaData.treenode);it!=lemon::INVALID;++it,++i)
+				{
+					phylogeny._tree.scoremap[it]=deltaData.updatedScores[i];
+				}
+			}
+			else
+			{
+				Node treenode=deltaData.treenode;
+				int nodeid=phylogeny._tree.g.id(treenode);
+				GraphData* graphdata=phylogeny.node2graph[nodeid];
+				if(graphdata->label2edge->find(deltaData.edgelabel)!=graphdata->label2edge->end())
+				{
+					Edge myedge=graphdata->label2edge->find(deltaData.edgelabel)->second;
+					graphdata->deleteEdge(myedge,deltaData.edgelabel);
+				}
+				else
+				{
+					graphdata->addEdge(deltaData.nodeA,deltaData.nodeB);
+				}
 			}
 		}
 	}
+	phylogeny.computeDist();
 }
 
 #endif

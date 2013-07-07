@@ -38,11 +38,11 @@ typedef struct _Option
   int numconnected;
   _Option()
   {
-    profile="./profile.txt";
+    profile="./test_profile.txt";
     numspecies=3;
     seedsize=5;
     seedtries=10;
-    numextention=10;
+    numextention=2;
     numsamples=1000;
     numconnected=2;
   }

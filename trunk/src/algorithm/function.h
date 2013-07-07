@@ -4,7 +4,7 @@ Date: Jun. 11, 2013
 File name: algorithm/function.h
 Description: Searching high-scoring subnetworks.
 **/
-
+#pragma once
 #ifndef FUNCTION_H_
 #define FUNCTION_H_
 
@@ -27,7 +27,7 @@ convert_num2str(TNum num)
 {
 	std::ostringstream buff;
 	buff<<num;
-    return buff.str();
+	return buff.str();
 }
 
 #endif /// FUNCTION_H
