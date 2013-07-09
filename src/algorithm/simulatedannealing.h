@@ -46,10 +46,10 @@ public:
 
 template<typename PH, typename OP>
 SimulatedAnnealing<PH,OP>::SimulatedAnnealing():
-_tmax(100),
+_tmax(50),
 _tmin(10),
-_Kmax(10),
-_Nmax(100),
+_Kmax(20),
+_Nmax(50),
 _k(0.05)
 {
 }
@@ -64,17 +64,18 @@ SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
 	unsigned seed =std::chrono::system_clock::now().time_since_epoch().count();
 	std::default_random_engine generator(seed);
 	std::uniform_real_distribution<float> distribution(0.0,1.0);
-	while(k<=_Kmax)
+	while(k++<=_Kmax)
 	{
 		t = t-step;// assert(t>_tmin);
-		float beta = 1.0/(_k*t);
+		float beta = -1.0/(_k*t);
 		for(unsigned n=0;n<_Nmax;++n)
 		{
 			DeltaStructure deltaData;
 			if(!phylogeny.interfere(deltaData))continue;
-			if(g_verbosity>=VERBOSE_ESSENTIAL)
-				std::cout <<deltaData.delta <<"\t" << exp(beta*deltaData.delta) <<"\n";
-			if(deltaData.delta>0 || distribution(generator)<exp(beta*deltaData.delta))
+			float sampledata=distribution(generator);
+			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+				std::cout <<deltaData.delta <<"\t" << sampledata<<"\t"<< exp(beta*deltaData.delta) <<"\n";
+			if(deltaData.delta<0 || sampledata < exp(beta*deltaData.delta))
 			{
 				// update current state to the neighbor state and its interaction evolutionary score.
 				int i=0;

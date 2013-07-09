@@ -4,6 +4,7 @@ Date: Jun. 11, 2013
 File name: algorithm/subnet.h
 Description: Data structure of a conserved subnetwork.
 **/
+#pragma once
 #ifndef SUBNET_H_
 #define SUBNET_H_
 
@@ -63,6 +64,7 @@ public:
 	  _GraphData()
 	  :nodeNum(0)
 	  ,edgeNum(0)
+		,maxDegree(0)
 	  {
 		  g=new Graph();
 		  node2degree=new DegreeMap(*g);
@@ -111,7 +113,7 @@ public:
 				  if((*node2degree)[node]>maxDegree)maxDegree++;
 			  }
 		  }
-	  }
+	  }	
 	  void addEdge(Node& node1,Node& node2)
 	  {
 		  int degree1,degree2;
@@ -186,7 +188,7 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 		GraphData* graphdata = new GraphData();
 		graphdata->offsprings.push_back(i);
 		std::vector<std::string> nodeset;
-		for(unsigned j=0;j<_seedSize;++j)
+		for(unsigned j=0;j<net_spines.size();++j)
 		{
 			std::string element=layergraph.node2label[net_spines[j].data[i]];
 			if(find(nodeset.begin(),nodeset.end(),element)!=nodeset.end())continue;
@@ -194,6 +196,7 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 			Node node=graphdata->g->addNode();
 			graphdata->nodeNum++;
 			graphdata->node2label->set(node,element);
+			graphdata->node2degree->set(node,0);
 			(*graphdata->label2node)[element]=node;
 			assert((*networks.getGraph(i)->invIdNodeMap).find(element)!=(*networks.getGraph(i)->invIdNodeMap).end());
 		}
@@ -207,17 +210,24 @@ SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 				std::string keystr;
 				Node node2=(*graphdata->label2node)[protein2];
 				if(protein1.compare(protein2)>0)
-			     {
-					 std::string tempstr = protein1;
-					 protein1 = protein2;
-					 protein2 = tempstr;
+				{
+					keystr.append(protein2);
+					keystr.append(protein1);
 				 }
+				else
+				{
 				 keystr.append(protein1);
 				 keystr.append(protein2);
+				}
 				 
-				 if(networks.getGraph(i)->interactionmap.find(keystr)
-				 ==networks.getGraph(i)->interactionmap.end())continue;
+				if(networks.getGraph(i)->interactionmap.find(keystr)==networks.getGraph(i)->interactionmap.end())continue;
 				 graphdata->g->addEdge(node1,node2);
+				 (*graphdata->node2degree)[node1]++;
+				 (*graphdata->node2degree)[node2]++;
+				 if((*graphdata->node2degree)[node1]>graphdata->maxDegree)
+					 graphdata->maxDegree=(*graphdata->node2degree)[node1];
+				 if((*graphdata->node2degree)[node2]>graphdata->maxDegree)
+					 graphdata->maxDegree=(*graphdata->node2degree)[node2];
 				 graphdata->edgeNum++;
 			}
 		}

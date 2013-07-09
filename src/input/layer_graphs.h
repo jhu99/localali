@@ -2,6 +2,7 @@
 Author: Jialu Hu
 Date: 10.06.2012*/
 
+#pragma once
 #ifndef LAYER_GRAPHS_H
 #define LAYER_GRAPHS_H
 

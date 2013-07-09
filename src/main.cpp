@@ -34,6 +34,8 @@ typedef struct _Option
   int seedsize;
   int seedtries;
   int numextention;
+	int minext;
+	int maxext;
   int numsamples;
   int numconnected;
   _Option()
@@ -43,6 +45,8 @@ typedef struct _Option
     seedsize=5;
     seedtries=10;
     numextention=2;
+		minext=5;
+		maxext=10;
     numsamples=1000;
     numconnected=2;
   }

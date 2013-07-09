@@ -4,6 +4,9 @@ Date: Jun. 11, 2013
 File name: algorithm/search.h
 Description: Searching high-scoring subnetworks.
 **/
+#pragma once
+#ifndef SEARCH_H_
+#define SEARCH_H_
 
 #include <vector>
 #include <fstream>
@@ -37,8 +40,6 @@ public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   /// Labels of the nodes.
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
-  /// Conrresponding graphs of the tree nodes.
-  typedef typename Graph::template NodeMap<GraphData*> NodeGraphMap;
   /// Mapping from labels to original nodes.
   typedef std::unordered_map<std::string, typename Graph::Node> InvOrigLabelNodeMap;
 
@@ -52,13 +53,12 @@ public:
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
     typename std::vector<SubNet*> refinedSeeds;
-    NodeGraphMap *node2graph;
     MyPhylogeny _phylogeny;
 	Search(Option&);
 	~Search(){};
 	void test(LayerGraph&,NetworkPool&);
 	void searchSeeds(LayerGraph&,NetworkPool&);
-	void searchCandidates(std::vector<Node>&,K_Spine&,LayerGraph&,NetworkPool&);
+	void searchCandidates(std::unordered_map<int,bool>&,std::vector<Node>&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool sampleSeed(SubNet&,LayerGraph&,NetworkPool&,std::discrete_distribution<int>&);
 	int sampleStringElement(int);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
@@ -66,7 +66,7 @@ public:
 	void verifyspine(LayerGraph&,NetworkPool&);
 	bool checkConnection(SubNet&,LayerGraph&,NetworkPool&);
 	void expandRefinedSeeds(SubNet&,LayerGraph&,NetworkPool&);
-	bool heuristicSearch(SubNet&,std::vector<Node>&,LayerGraph&,NetworkPool&);
+	bool heuristicSearch(SubNet&,std::unordered_map<int,bool>&,std::vector<Node>&,LayerGraph&,NetworkPool&);
 	
 };
 
@@ -75,7 +75,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,refinedSeeds()
-,_phylogeny(myoption.treefile,myoption.seedsize+myoption.seedtries)
+,_phylogeny(myoption.treefile,myoption.seedsize+myoption.numextention)
 {
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
@@ -93,10 +93,10 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 	searchSeeds(layergraph,networks);
 	int numAll=0;
 	MySimulatedAnnealing simulatedannealing;
-	for(unsigned i=0;i<refinedSeeds.size();i++)
+	for(unsigned i=0;i<1;i++)//refinedSeeds.size()
 	{
 		int numQualified=0;
-		for(int j=0; j<_seedTries;j++)
+		for(int j=0; j<1;j++)//_seedTries
 		{
 			SubNet subnet=*refinedSeeds[i];
 			expandRefinedSeeds(subnet,layergraph,networks);
@@ -104,11 +104,14 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 			if(checkConnection(subnet,layergraph,networks))
 			{
 				subnet.output(layergraph);
-				//_phylogeny.initial(subnet,layergraph);
-				//simulatedannealing.run(_phylogeny);
+				_phylogeny.initial(subnet,layergraph);
+				simulatedannealing.run(_phylogeny);
 				numQualified++;
 				if(g_verbosity>=VERBOSE_ESSENTIAL)
+				{
+					_phylogeny.outputInternalGraphs();
 					std::cout << "--------------------------------------" << std::endl;
+				}
 			}
 		}
 		numAll+=numQualified;
@@ -120,10 +123,11 @@ Search<NP,SN,LG,OP>::test(LayerGraph& layergraph,NetworkPool& networks)
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG,OP>::searchCandidates(std::vector<Node>& candidates,
-									  K_Spine& pspine,
-									  LayerGraph& layergraph,
-									  NetworkPool& networks)
+Search<NP,SN,LG,OP>::searchCandidates(std::unordered_map<int,bool>& usedValidNodes,
+																			std::vector<Node>& candidates,
+																			K_Spine& pspine,
+																			LayerGraph& layergraph,
+																			NetworkPool& networks)
 {
 	std::vector<std::string> innerproteins;
 	std::vector<std::string> neighborproteins;
@@ -132,14 +136,14 @@ Search<NP,SN,LG,OP>::searchCandidates(std::vector<Node>& candidates,
 		innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
 	}
 	networks.getNeighbors(innerproteins,neighborproteins);
-	candidates.clear();
 	for(unsigned j=0;j<neighborproteins.size();++j)
 	{
 		std::string protein=neighborproteins[j];
 		Node neighbor=layergraph.label2node[protein];
 		int neighborid=layergraph.graph.id(neighbor);
-		if(find(pspine.data.begin(),pspine.data.begin()+_numSpecies,neighbor))continue;
 		if(layergraph.validnodemap.find(neighborid)==layergraph.validnodemap.end())continue;
+		if(usedValidNodes.find(neighborid)!=usedValidNodes.end())continue;
+		if(find(candidates.begin(),candidates.end(),neighbor)!=candidates.end())continue;
 		candidates.push_back(neighbor);
 	}
 }
@@ -150,50 +154,72 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(SubNet& subnet,LayerGraph& layergraph,Ne
 {
 	int num=0;
 	std::vector<Node> candidates;
+	std::unordered_map<int,bool> usedValidNodes;
 	// searching neighbors of subnet.
 	for(unsigned i=0;i<subnet.net_spines.size();i++)
-		searchCandidates(candidates, subnet.net_spines[i], layergraph, networks);
+	{
+		for(unsigned j=0;j<_numSpecies;j++)
+		{
+			Node node=subnet.net_spines[i].data[j];
+			int nodeid=layergraph.graph.id(node);
+			if(layergraph.validnodemap.find(nodeid)==layergraph.validnodemap.end())continue;
+			usedValidNodes[layergraph.graph.id(node)]=true;
+		}
+		searchCandidates(usedValidNodes,candidates, subnet.net_spines[i], layergraph, networks);
+	}
+	typename std::vector<Node>::iterator it=candidates.begin();
+	while(it!=candidates.end())
+	{
+		if(usedValidNodes.find(layergraph.graph.id(*it))!=usedValidNodes.end())
+			it=candidates.erase(it);
+		else
+			++it;
+	}
 	while(num++<_numExtention)
 	{
-		heuristicSearch(subnet, candidates, layergraph,networks);
+		heuristicSearch(subnet, usedValidNodes, candidates, layergraph,networks);
 	}	
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet,std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
+	Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet, std::unordered_map<int,bool>& usedValidNodes, std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
 {
-	std::vector<Node> optimalcandidates;
-	std::unordered_map<int,int> candidatesmap;
-	int maxnum=1;
-	for(unsigned i=0;i<candidates.size();i++)
-	{
-		int nodeid=layergraph.graph.id(candidates[i]);
-		if(candidatesmap.find(nodeid)!=candidatesmap.end())
-		{
-			candidatesmap[nodeid]++;
-			if(maxnum<candidatesmap[nodeid])
-				maxnum=candidatesmap[nodeid];
-		}
-		else
-			candidatesmap[nodeid]=1;
-	}
-	for(std::unordered_map<int,int>::iterator it=candidatesmap.begin();it!=candidatesmap.end();it++)
-	{
-		if(it->second==maxnum)
-			optimalcandidates.push_back(layergraph.graph.nodeFromId(it->first));
-	}
+	//std::vector<Node> optimalcandidates;
+	//std::unordered_map<int,int> candidatesmap;
+	//int maxnum=1;
+	//for(unsigned i=0;i<candidates.size();i++)
+	//{
+	//	int nodeid=layergraph.graph.id(candidates[i]);
+	//	if(candidatesmap.find(nodeid)!=candidatesmap.end())
+	//	{
+	//		candidatesmap[nodeid]++;
+	//		if(maxnum<candidatesmap[nodeid])
+	//			maxnum=candidatesmap[nodeid];
+	//	}
+	//	else
+	//		candidatesmap[nodeid]=1;
+	//}
+	//for(std::unordered_map<int,int>::iterator it=candidatesmap.begin();it!=candidatesmap.end();it++)
+	//{
+	//	if(it->second==maxnum)
+	//		optimalcandidates.push_back(layergraph.graph.nodeFromId(it->first));
+	//}
 	///
-	int dice_roll = distribution(generator)%optimalcandidates.size();
-	Node node=optimalcandidates[dice_roll];
+	/*int dice_roll = distribution(generator)%optimalcandidates.size();
+	Node node=optimalcandidates[dice_roll];*/
+	int dice_roll = distribution(generator)%candidates.size();
+	Node node=candidates[dice_roll];
+	candidates.erase(candidates.begin()+dice_roll);
 	K_Spine pspine;
+	usedValidNodes[layergraph.graph.id(node)]=true;
 	if(!sampleKSpine(node,pspine,layergraph,networks))
 	{
 		std::cerr <<"Invalid sample node!"<<std::endl;
 		return false;
 	}
 	subnet.net_spines.push_back(pspine);
-	searchCandidates(candidates,pspine,layergraph,networks);
+	searchCandidates(usedValidNodes, candidates,pspine,layergraph,networks);
 	
 	return true;
 }
@@ -230,6 +256,7 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 	int dice_roll = discrete(generator);
 	Node firstnode = layergraph.validnodes[dice_roll];
 	std::vector<Node> candidates;
+	std::unordered_map<int,bool> usedValidNodes;
 	for(int i=0;i<_seedSize;++i)
 	{
 		Node node;
@@ -265,10 +292,12 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 			/// randomly sample a neighbor in candidates.
 			dice_roll = distribution(generator)%candidates.size();
 			node=candidates[dice_roll];
+			candidates.erase(candidates.begin()+dice_roll);
 		}
 		K_Spine pspine;
-	    if(!sampleKSpine(node,pspine,layergraph,networks))
-	    {
+		usedValidNodes[layergraph.graph.id(node)]=true;
+		if(!sampleKSpine(node,pspine,layergraph,networks))
+		{
 			std::cerr <<"Invalid sample node!"<<std::endl;
 			return false;
 		}
@@ -280,8 +309,8 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet& subnet, LayerGraph& layergraph, NetworkP
 				std::cout << layergraph.node2label[pspine.data[j]]<<" ";
 			std::cout << std::endl;
 		}
-		searchCandidates(candidates, pspine, layergraph, networks);
-	    subnet.net_spines.push_back(pspine);
+		searchCandidates(usedValidNodes,candidates, pspine, layergraph, networks);
+		subnet.net_spines.push_back(pspine);
 	}
 	subnet.induceSubgraphs(networks,layergraph);
 	return checkConnection(subnet,layergraph,networks);
@@ -420,3 +449,4 @@ Search<NP,SN,LG,OP>::expandspine(	K_Spine spine
 	}
 	return false;
 }
+#endif
