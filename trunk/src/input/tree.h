@@ -4,7 +4,7 @@ Date: Jun. 11, 2013
 File name: algorithm/tree.h
 Description: Searching high-scoring subnetworks.
 **/
-
+#pragma once
 #ifndef TREE_H
 #define TREE_H
 
