@@ -18,6 +18,7 @@ Description: Major body
 #include "input/layer_graphs.h"
 #include "algorithm/subnet.h"
 #include "algorithm/search.h"
+#include "omp.h"
 
 using namespace std;
 
@@ -33,22 +34,24 @@ typedef struct _Option
   int numspecies;
   int seedsize;
   int seedtries;
-  int numextention;
-	int minext;
-	int maxext;
+  int minext;
+  int maxext;
   int numsamples;
   int numconnected;
+  int numthreads;
+  bool parallel;
   _Option()
   {
-    profile="./test_profile.txt";
+    profile="./profile.txt";
     numspecies=3;
     seedsize=5;
     seedtries=10;
-    numextention=2;
-		minext=5;
-		maxext=10;
-    numsamples=1000;
+	minext=1;
+	maxext=5;
+    numsamples=4000;
     numconnected=2;
+    numthreads=1;
+    parallel=true;
   }
 }Option;
 
@@ -67,19 +70,25 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize)
-	.refOption("numextention","Number of the extention . Default is 10.", myoption.numextention)
+	.refOption("minext","Minimal number of the extension . Default is 1.", myoption.minext)
+	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
-	.refOption("numsamples","Number of sampled seeds. Default is 1000.", myoption.numsamples);
+	.refOption("numsamples","Number of sampled seeds. Default is 2000.", myoption.numsamples)
+	.refOption("numthreads","Number of threads. Default is 1", myoption.numsamples)
+	.refOption("parallel","Run LocalAli in parallel. Default is true", myoption.parallel);
 	return true;
 }
 
 bool runParser(ArgParser& myparser, Option& myoption)
 {
-  std::string filename;
-  ProcessProfile<Option> myprofile(myoption.profile);
-  myprofile.getOption(myoption);
+  ProcessProfile<Option> myprofile;
   myparser.run();
-  filename.append(myoption.resultfolder);
+  myprofile.getOption(myoption);
+  if(myoption.parallel)
+  {
+	  myoption.numthreads=omp_get_max_threads();
+	  std::cout << "This program will be run with "<< myoption.numthreads <<" multiple threads." << std::endl;
+  }
   return true;
 }
 
@@ -92,18 +101,17 @@ int main(int argc, char** argv)
   
   InputGraph networks;
   LayerGraph layergraph;
-  MySearch isearch(myoption);
+  MySearch localAlignment(myoption);
   Timer t(false);
 
   g_verbosity=VERBOSE_ESSENTIAL;
 
   t.start();
-  //Test read interface for PPI networks;
+  // Read interface for PPI networks;
   networks.initNetworkPool(myoption.networkfiles);
   layergraph.read(myoption.layerfile,networks);
 
-  //Test search implementation.
-  isearch.test(layergraph,networks);
+  localAlignment.run(layergraph,networks);
   t.stop();
   if(g_verbosity>=VERBOSE_ESSENTIAL)
   std::cerr <<"Elapsed time: "<< t <<std::endl;

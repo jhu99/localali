@@ -1,4 +1,5 @@
 folder ./dataset/dip/3-way/
+resultfolder ./result/dip/3-way/localali/
 species Caenorhabditis_elegans
 species Drosophila_melanogaster
 species Saccharomyces_cerevisiae

@@ -16,23 +16,21 @@ private:
   std::string profile;
   ProfileMap profileMap;
 public:
-  ProcessProfile(std::string);
-  bool readProfile();
+  ProcessProfile();
+  bool readProfile(std::string);
   bool getArray(std::string&,FileNames&);
   bool getOption(Option&);
   bool getKey(std::string&,std::string&);
 };
 
 template<typename Option>
-ProcessProfile<Option>::ProcessProfile(std::string filename)
+ProcessProfile<Option>::ProcessProfile()
 {
-  profile=filename;
-  readProfile();
 }
 
 template<typename Option>
 bool
-ProcessProfile<Option>::readProfile()
+ProcessProfile<Option>::readProfile(std::string profile)
 {
   std::ifstream input(profile.c_str());
   std::string line;
@@ -69,9 +67,13 @@ template<typename Option>
 bool
 ProcessProfile<Option>::getOption(Option& myoption)
 {
+	profile=myoption.profile;
+	readProfile(profile);
 	std::string mykey="folder";
 	std::string mystr,myfolder;
 	getKey(mykey,myfolder);
+	mykey="resultfolder";
+	getKey(mykey,myoption.resultfolder);
 	mykey="species";
 	getArray(mykey,myoption.speciesfiles);
 	for(unsigned i=0;i<myoption.speciesfiles.size();i++)
