@@ -18,7 +18,7 @@ Description: Data structure of the phylogeny of the observed functional modules.
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
 #include "macro.h"
-#include "tree.h"
+#include "input/tree.h"
 
 template<typename SN, typename TR>
 class Phylogeny
@@ -47,14 +47,16 @@ public:
 	std::uniform_int_distribution<int> distribution;
 	Tree _tree;
 	int _dsize;
+	std::string _treefile;
 	std::vector<std::string> _speciesfiles;
 	std::vector<Node> internalNode;
 	std::vector<Node> externalNode;
 	std::unordered_map<int,GraphData*> node2graph;
 
-	Phylogeny(std::string&,int dsize);//dsize is the number of k-spines.
-	~Phylogeny(){};
-	bool initial(SubNet&,LayerGraph&);
+	//Phylogeny();
+	Phylogeny();//dsize is the number of k-spines.
+	~Phylogeny();
+	bool initial(std::string&,std::vector<std::string>&,SubNet&,LayerGraph&);
 	bool initialExternalNodes(SubNet&);
 	bool interfere(DeltaStructure&);
 	bool initialBranchWeight();
@@ -65,17 +67,43 @@ public:
 	GraphData* constructInternalNodes(Node&,SubNet&,LayerGraph&);
 	// Output the optimal graphs of internal nodes.
 	void outputInternalGraphs(void);
+	bool clearStructure(void);
+	void setDsize(int);
 };
 
 template<typename SN, typename TR>
-Phylogeny<SN,TR>::Phylogeny(std::string& filename,int dsize)
+Phylogeny<SN,TR>::Phylogeny()
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,_tree()
-,_dsize(dsize)
+,_dsize(0)
+,_speciesfiles()
+,internalNode()
+,externalNode()
 ,node2graph()
 {
-	_tree.readTree(filename);
+}
+
+template<typename SN, typename TR>
+Phylogeny<SN,TR>::~Phylogeny()
+{
+}
+
+template<typename SN, typename TR>
+void
+Phylogeny<SN,TR>::setDsize(int num)
+{
+	_dsize=num;
+}
+
+template<typename SN, typename TR>
+bool
+Phylogeny<SN,TR>::clearStructure()
+{
+	internalNode.clear();
+	externalNode.clear();
+	node2graph.clear();
+	return true;
 }
 
 template<typename SN, typename TR>
@@ -137,7 +165,7 @@ Phylogeny<SN,TR>::interfere(DeltaStructure& deltaStr)
 	}
 	deltaStr.delta=deltaScore.sumup();
 
-	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	std::cout << deltaStr.delta << std::endl;
 	return true;
 }
@@ -180,11 +208,15 @@ Phylogeny<SN,TR>::existNode(std::vector<std::string>& xspine,GraphData* graphdat
 
 template<typename SN, typename TR>
 bool
-Phylogeny<SN,TR>::initial(SubNet& subnet,LayerGraph& layergraph)
+Phylogeny<SN,TR>::initial(std::string& mytreefile,
+						  std::vector<std::string>& myspeciesfiles,
+						  SubNet& subnet,
+						  LayerGraph& layergraph)
 {
-	node2graph.clear();
-	externalNode.clear();
-	internalNode.clear();
+	_treefile=mytreefile;
+	_speciesfiles=myspeciesfiles;
+	_tree.readTree(_treefile);
+	clearStructure();
 	initialExternalNodes(subnet);
 	GraphData* graphdata=constructInternalNodes(_tree.root,subnet,layergraph);
 	node2graph[_tree.g.id(_tree.root)]=graphdata;

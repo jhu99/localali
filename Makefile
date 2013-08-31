@@ -16,9 +16,9 @@ endif
 LEMON = include/lemon-1.2.3
 
 ifeq ($(MODE),Debug)
-	CXXFLAGS = -Wall -g3 -DDEBUG -std=c++0x -DVERBOSE -I$(LEMON)/ -Isrc/ -Isrc/input/
+	CXXFLAGS = -Wall -g3 -DDEBUG -fopenmp -std=c++0x -DVERBOSE -I$(LEMON)/ -Isrc/
 else
-	CXXFLAGS = -Wall -O3 -ffast-math -fcaller-saves -finline-functions -std=c++0x -DNDEBUG -I$(LEMON)/ -Isrc/ -Isrc/input/
+	CXXFLAGS = -Wall -O3 -ffast-math -fcaller-saves -finline-functions -fopenmp -std=c++0x -DNDEBUG -I$(LEMON)/ -Isrc/
 endif
 
 all: localali move

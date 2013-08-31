@@ -15,8 +15,10 @@ Description: Data structure of a conserved subnetwork.
 #include <unordered_map>
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
-#include "macro.h"
 #include "algorithm/function.h"
+#include "macro.h"
+#include "function.h"
+#include "score.h"
 
 template<typename NP, typename LG>
 class SubNet
@@ -135,7 +137,9 @@ public:
   ~SubNet();
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
   bool clearStructure();
-  void output(LayerGraph&);
+	void output(LayerGraph&,std::ofstream&);
+	void outputSubgraphs(LayerGraph&,std::string&,int,int,int);
+	void outputAlignment(float,LayerGraph&,std::string&,int,int,int);
 };
 
 template<typename NP, typename LG>
@@ -156,17 +160,65 @@ SubNet<NP,LG>::~SubNet()
 
 template<typename NP, typename LG>
 void
-SubNet<NP,LG>::output(LayerGraph& layergraph)
+SubNet<NP,LG>::outputSubgraphs(LayerGraph& layergraph,std::string& folder,int seednum,int extnum,int triesnum)
+{
+	std::string filename;
+	std::ofstream fout;
+	GraphData* graphdata;
+	for(unsigned i=0;i<subgraphs.size();i++)
+	{
+		filename=folder;
+		filename.append("species_");
+		filename.append(convert_num2str(i));
+		filename.append("/complex_s");
+		filename.append(convert_num2str(seednum));
+		filename.append("_e");
+		filename.append(convert_num2str(extnum));
+		filename.append("_t");
+		filename.append(convert_num2str(triesnum));
+		filename.append(".txt");
+		fout.open(filename.c_str(),std::ofstream::out | std::ofstream::trunc);
+		graphdata=subgraphs[i];
+		for(NodeIt it(*graphdata->g);it!=lemon::INVALID;++it)
+		{
+			fout << (*graphdata->node2label)[it] << std::endl;
+		}
+		fout.close();
+	}
+}
+
+template<typename NP, typename LG>
+void
+SubNet<NP,LG>::output(LayerGraph& layergraph,std::ofstream& fout)
 {
 	for(unsigned i=0;i<net_spines.size();i++)
 	{
 		for(unsigned j=0;j<_numSpecies;j++)
 		{
 			if(g_verbosity>=VERBOSE_ESSENTIAL)
-			std::cout << layergraph.node2label[net_spines[i].data[j]]<<"\t";
+			fout << layergraph.node2label[net_spines[i].data[j]]<<"\t";
 		}
-		std::cout << std::endl;
+		fout << std::endl;
 	}
+}
+
+template<typename NP, typename LG>
+void
+SubNet<NP,LG>::outputAlignment(float overallscore,LayerGraph& layergraph,std::string& folder,int seednum,int extnum,int triesnum)
+{
+	std::string filename(folder);
+	filename.append("alignments/ucomplex_s");
+	filename.append(convert_num2str(seednum));
+	filename.append("_e");
+	filename.append(convert_num2str(extnum));
+	filename.append("_t");
+	filename.append(convert_num2str(triesnum));
+	filename.append(".txt");
+	std::ofstream fout(filename.c_str());
+	fout <<"#Score:"<<overallscore<<std::endl;
+	output(layergraph,fout);
+	outputSubgraphs(layergraph,folder,seednum,extnum,triesnum);
+	fout.close();
 }
 
 template<typename NP, typename LG>
@@ -182,7 +234,10 @@ template<typename NP, typename LG>
 bool
 SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
 {
-	if(subgraphs.size()>0)subgraphs.clear();
+	if(subgraphs.size()>0)
+	{
+		subgraphs.clear();
+	}
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
 		GraphData* graphdata = new GraphData();

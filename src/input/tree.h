@@ -66,6 +66,7 @@ public:
 	/// Nodes matching map for each branch.
 	MatchingEdgeMap matchingedgemap; 
 
+	Tree();
 	Tree(float beta);
 	~Tree(){};
 	bool readTree(std::string);
@@ -75,7 +76,20 @@ public:
 };
 
 template<typename GR, typename OP>
-Tree<GR,OP>::Tree(float beta=1.5)
+Tree<GR,OP>::Tree()
+:g()
+,distEvolution()
+,_beta(1.5)
+,node2label(g)
+,label2node()
+,branchmap(g)
+,scoremap(g)
+,matchingedgemap(g)
+{
+}
+
+template<typename GR, typename OP>
+Tree<GR,OP>::Tree(float beta)
 :g()
 ,distEvolution()
 ,_beta(beta)
@@ -86,6 +100,7 @@ Tree<GR,OP>::Tree(float beta=1.5)
 ,matchingedgemap(g)
 {
 }
+
 template<typename GR, typename OP>
 bool
 Tree<GR,OP>::readTree(std::string filename)
