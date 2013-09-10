@@ -127,11 +127,12 @@ Tree<GR,OP>::constructTree(std::string sentence)
 	char * pSentence = new char [sentence.length()+1];
 	strcpy (pSentence, sentence.c_str());
 	char * pch = strtok(pSentence,"(),:;");
+	if(g_verbosity>VERBOSE_NON_ESSENTIAL)
 	std::cout << sentence << std::endl;
 	while(pch!=0)
 	{
 		std::string word(pch);
-		if(g_verbosity>VERBOSE_ESSENTIAL)
+		if(g_verbosity>VERBOSE_NON_ESSENTIAL)
 		std::cout <<word<<std::endl;
 		wordpipe.push_back(word);
 		pch=strtok(NULL,"(),:;");
@@ -141,11 +142,11 @@ Tree<GR,OP>::constructTree(std::string sentence)
 	while(found!=std::string::npos)
 	{
 		parenthesepipe.push_back(sentence[found]);
-		if(g_verbosity>=VERBOSE_ESSENTIAL)
+		if(g_verbosity>VERBOSE_NON_ESSENTIAL)
 		std::cout << sentence[found];
 		found=sentence.find_first_of("(,);",found+1);
 	}
-	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	if(g_verbosity>VERBOSE_NON_ESSENTIAL)
 	std::cout << std::endl;
 	
 	size_t sz=parenthesepipe.size();

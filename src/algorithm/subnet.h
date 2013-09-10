@@ -76,11 +76,11 @@ public:
 	  }
 	  ~_GraphData()
 	  {
-		  delete g;
 		  delete node2degree;
 		  delete node2label;
 		  delete label2node;
 		  delete label2edge;
+			delete g;
 	  }
 	  std::string formEdgeLabel(Node& node1,Node& node2)
 	  {
