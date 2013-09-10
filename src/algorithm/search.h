@@ -23,6 +23,7 @@ Description: Searching high-scoring subnetworks.
 #include "algorithm/simulatedannealing.h"
 #include "function.h"
 #include <omp.h>
+//#include <assert.h>
 
 template<typename NP, typename SN, typename LG, typename OP>
 class Search
@@ -131,7 +132,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	int numAll=0;
 	unsigned csize=refinedSeeds.size();
 	PrivateVariable myPrivateVariable;
-	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) private(myPrivateVariable) reduction(+ : numAll)
+	//#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) private(myPrivateVariable) reduction(+ : numAll)
 	for(unsigned i=0;i<csize;i++)
 	{
 		#pragma omp critical
@@ -246,7 +247,8 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 						myprivateVariable.candidates, 
 						layergraph,
 						networks);
-	}	
+	}
+	assert(myprivateVariable.subnet->net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
 	
 }
 
