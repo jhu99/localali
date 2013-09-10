@@ -133,6 +133,7 @@ public:
   std::vector<K_Spine> net_spines;
   std::vector<GraphData*> subgraphs;
 
+  SubNet();
   SubNet(unsigned,unsigned);
   ~SubNet();
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
@@ -141,6 +142,13 @@ public:
 	void outputSubgraphs(LayerGraph&,std::string&,int,int,int);
 	void outputAlignment(float,LayerGraph&,std::string&,int,int,int);
 };
+
+template<typename NP, typename LG>
+SubNet<NP,LG>::SubNet():
+net_spines(),
+subgraphs()
+{
+}
 
 template<typename NP, typename LG>
 SubNet<NP,LG>::SubNet(unsigned num1, unsigned num2):

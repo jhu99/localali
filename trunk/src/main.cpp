@@ -46,8 +46,8 @@ typedef struct _Option
     numspecies=3;
     seedsize=5;
     seedtries=1;
-	minext=1;
-	maxext=5;
+	minext=5;
+	maxext=10;
     numsamples=4000;
     numconnected=2;
     numthreads=1;

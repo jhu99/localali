@@ -67,7 +67,7 @@ public:
     typedef struct _PrivateVariable
 	{
 		MyPhylogeny *phylogeny;
-		SubNet *subnet;
+		SubNet subnet;
 		MySimulatedAnnealing simulatedannealing;
 		int k;
 		int j;
@@ -82,7 +82,7 @@ public:
 		Node node;
 		typename std::vector<Node>::iterator it;
 		_PrivateVariable()
-		:phylogeny(),subnet(0),simulatedannealing(),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
+		:phylogeny(),subnet(),simulatedannealing(),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
 		{
 		}
 	} PrivateVariable;
@@ -100,7 +100,7 @@ public:
 	bool checkConnection(SubNet*,LayerGraph&,NetworkPool&);
 	bool checkConnectionParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
 	void expandRefinedSeeds(PrivateVariable&,LayerGraph&,NetworkPool&);
-	bool heuristicSearch(SubNet*,std::unordered_map<int,bool>&,std::vector<Node>&,LayerGraph&,NetworkPool&);
+	bool heuristicSearch(SubNet&,std::unordered_map<int,bool>&,std::vector<Node>&,LayerGraph&,NetworkPool&);
 	
 };
 
@@ -132,7 +132,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	int numAll=0;
 	unsigned csize=refinedSeeds.size();
 	PrivateVariable myPrivateVariable;
-	//#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) private(myPrivateVariable) reduction(+ : numAll)
+	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) firstprivate(myPrivateVariable) reduction(+ : numAll)
 	for(unsigned i=0;i<csize;i++)
 	{
 		#pragma omp critical
@@ -144,9 +144,9 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 			setExtension(myPrivateVariable);
 			for(myPrivateVariable.j=0; myPrivateVariable.j<_seedTries;myPrivateVariable.j++)//_seedTries
 			{
-				myPrivateVariable.subnet=refinedSeeds[i];
+				myPrivateVariable.subnet=*refinedSeeds[i];// a copy of refinedSeeds;
 				expandRefinedSeeds(myPrivateVariable,layergraph,networks);
-				myPrivateVariable.subnet->induceSubgraphs(networks,layergraph);
+				myPrivateVariable.subnet.induceSubgraphs(networks,layergraph);
 				if(checkConnectionParallel(myPrivateVariable,layergraph,networks))
 				{
 					myPrivateVariable.phylogeny=new MyPhylogeny();
@@ -154,7 +154,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 					myPrivateVariable.phylogeny->initial(_treefile,_speciesfiles,myPrivateVariable.subnet,layergraph);
 					myPrivateVariable.simulatedannealing.run(myPrivateVariable.phylogeny);
 					numAll++;
-					myPrivateVariable.subnet->outputAlignment(myPrivateVariable.phylogeny->_tree.overallScore,
+					myPrivateVariable.subnet.outputAlignment(myPrivateVariable.phylogeny->_tree.overallScore,
 															layergraph,
 															_resultfolder,
 															i,
@@ -215,18 +215,18 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 {
 	
 	//// searching neighbors of subnet.
-	for(myprivateVariable.ei=0;myprivateVariable.ei<myprivateVariable.subnet->net_spines.size();myprivateVariable.ei++)
+	for(myprivateVariable.ei=0;myprivateVariable.ei<myprivateVariable.subnet.net_spines.size();myprivateVariable.ei++)
 	{
 		for(myprivateVariable.ej=0;myprivateVariable.ej<_numSpecies;myprivateVariable.ej++)
 		{
-			myprivateVariable.node=myprivateVariable.subnet->net_spines[myprivateVariable.ei].data[myprivateVariable.ej];
+			myprivateVariable.node=myprivateVariable.subnet.net_spines[myprivateVariable.ei].data[myprivateVariable.ej];
 			myprivateVariable.nodeid=layergraph.graph.id(myprivateVariable.node);
 			if(layergraph.validnodemap.find(myprivateVariable.nodeid)==layergraph.validnodemap.end())continue;
 			myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
 		}
 		searchCandidates(myprivateVariable.usedValidNodes,
 						myprivateVariable.candidates, 
-						myprivateVariable.subnet->net_spines[myprivateVariable.ei], 
+						myprivateVariable.subnet.net_spines[myprivateVariable.ei], 
 						layergraph, 
 						networks);
 	}
@@ -248,13 +248,13 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 						layergraph,
 						networks);
 	}
-	assert(myprivateVariable.subnet->net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
+	assert(myprivateVariable.subnet.net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
 	
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-	Search<NP,SN,LG,OP>::heuristicSearch(SubNet* subnet, std::unordered_map<int,bool>& usedValidNodes, std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
+	Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet, std::unordered_map<int,bool>& usedValidNodes, std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
 {
 	unsigned csize=candidates.size();
 	std::uniform_int_distribution<int> discrete(0,layergraph.validnodes.size()-1);
@@ -283,7 +283,7 @@ bool
 		std::cerr <<"Invalid sample node!"<<std::endl;
 		return false;
 	}
-	subnet->net_spines.push_back(pspine);
+	subnet.net_spines.push_back(pspine);
 	searchCandidates(usedValidNodes, candidates,pspine,layergraph,networks);
 	
 	return true;
@@ -398,7 +398,7 @@ Search<NP,SN,LG,OP>::checkConnectionParallel(PrivateVariable& myprivateVariable,
 	myprivateVariable.numConnected=0;
 	for( myprivateVariable.ei=0;myprivateVariable.ei<_numSpecies;++myprivateVariable.ei)
 	{
-		if(myprivateVariable.subnet->subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.subnet->subgraphs[myprivateVariable.ei]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
+		if(myprivateVariable.subnet.subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.subnet.subgraphs[myprivateVariable.ei]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
 		myprivateVariable.numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
