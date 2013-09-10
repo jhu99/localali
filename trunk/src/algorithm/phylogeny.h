@@ -56,15 +56,15 @@ public:
 	//Phylogeny();
 	Phylogeny();//dsize is the number of k-spines.
 	~Phylogeny();
-	bool initial(std::string&,std::vector<std::string>&,SubNet&,LayerGraph&);
-	bool initialExternalNodes(SubNet&);
+	bool initial(std::string&,std::vector<std::string>&,SubNet*,LayerGraph&);
+	bool initialExternalNodes(SubNet*);
 	bool interfere(DeltaStructure&);
 	bool initialBranchWeight();
 	bool computeBranchWeight(EdgeIt&,Score&);
 	bool computeScore(Score&,MatchingNodeMap*, GraphData*, GraphData*,float&);
 	bool existNode(std::vector<std::string>&,GraphData*);
 	bool computeDist();
-	GraphData* constructInternalNodes(Node&,SubNet&,LayerGraph&);
+	GraphData* constructInternalNodes(Node&,SubNet*,LayerGraph&);
 	// Output the optimal graphs of internal nodes.
 	void outputInternalGraphs(void);
 	bool clearStructure(void);
@@ -172,13 +172,13 @@ Phylogeny<SN,TR>::interfere(DeltaStructure& deltaStr)
 
 template<typename SN, typename TR>
 bool
-Phylogeny<SN,TR>::initialExternalNodes(SubNet& subnet)
+Phylogeny<SN,TR>::initialExternalNodes(SubNet* subnet)
 {
 	for(unsigned i=0;i<_speciesfiles.size();i++)
 	{
 		std::string species=_speciesfiles[i];
 		Node node=_tree.label2node[species];
-		node2graph[_tree.g.id(node)]=subnet.subgraphs[i];
+		node2graph[_tree.g.id(node)]=subnet->subgraphs[i];
 		externalNode.push_back(node);
 	}
 	return true;
@@ -210,7 +210,7 @@ template<typename SN, typename TR>
 bool
 Phylogeny<SN,TR>::initial(std::string& mytreefile,
 						  std::vector<std::string>& myspeciesfiles,
-						  SubNet& subnet,
+						  SubNet* subnet,
 						  LayerGraph& layergraph)
 {
 	_treefile=mytreefile;
@@ -354,7 +354,7 @@ Phylogeny<SN,TR>::computeBranchWeight(EdgeIt& ie,Score& score)
 
 template<typename SN, typename TR>
 typename Phylogeny<SN,TR>::GraphData*
-Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet& subnet,LayerGraph& layergraph)
+Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet* subnet,LayerGraph& layergraph)
 {
 	GraphData* graphdata=new GraphData();
 	std::vector<Node> sonnodes;
@@ -378,13 +378,13 @@ Phylogeny<SN,TR>::constructInternalNodes(Node& ancestor,SubNet& subnet,LayerGrap
 	/// construct internal nodes.
 	typedef std::list<std::vector<std::string> > SpineList;
 	SpineList incSpines;
-	for(unsigned i=0;i<subnet.net_spines.size();++i)
+	for(unsigned i=0;i<subnet->net_spines.size();++i)
 	{
 		std::vector<std::string> xspine;
 		for(unsigned j=0;j<graphdata->offsprings.size();++j)
 		{
 			unsigned nspecies=graphdata->offsprings[j];
-			Node leavenode=subnet.net_spines[i].data[nspecies];
+			Node leavenode=subnet->net_spines[i].data[nspecies];
 			xspine.push_back(layergraph.node2label[leavenode]);
 		}
 		incSpines.push_back(xspine);

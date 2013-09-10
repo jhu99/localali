@@ -51,7 +51,7 @@ typedef struct _Option
     numsamples=4000;
     numconnected=2;
     numthreads=1;
-    parallel=true;
+		parallel=false;
   }
 }Option;
 
@@ -74,8 +74,8 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
 	.refOption("numsamples","Number of sampled seeds. Default is 2000.", myoption.numsamples)
-	.refOption("numthreads","Number of threads. Default is 1", myoption.numsamples)
-	.refOption("parallel","Run LocalAli in parallel. Default is true", myoption.parallel);
+	.refOption("numthreads","Number of threads. Default is 1.", myoption.numsamples)
+	.refOption("parallel","Run LocalAli in parallel. Default is false.", myoption.parallel);
 	return true;
 }
 
