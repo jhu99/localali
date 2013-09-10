@@ -45,9 +45,9 @@ typedef struct _Option
     profile="./profile.txt";
     numspecies=3;
     seedsize=5;
-    seedtries=10;
-	minext=5;
-	maxext=10;
+    seedtries=1;
+	minext=1;
+	maxext=5;
     numsamples=4000;
     numconnected=2;
     numthreads=1;
