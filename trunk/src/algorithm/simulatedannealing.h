@@ -41,7 +41,7 @@ public:
 	float _k;
 	SimulatedAnnealing();
 	~SimulatedAnnealing(){};
-	void run(Phylogeny&);
+	void run(Phylogeny*);
 };
 
 template<typename PH, typename OP>
@@ -56,7 +56,7 @@ _k(0.05)
 
 template<typename PH, typename OP>
 void
-SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
+SimulatedAnnealing<PH,OP>::run(Phylogeny* phylogeny)
 {
 	unsigned k=0;
 	float t=_tmax;
@@ -71,7 +71,7 @@ SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
 		for(unsigned n=0;n<_Nmax;++n)
 		{
 			DeltaStructure deltaData;
-			if(!phylogeny.interfere(deltaData))continue;
+			if(!phylogeny->interfere(deltaData))continue;
 			float sampledata=distribution(generator);
 			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 				std::cout <<deltaData.delta <<"\t" << sampledata<<"\t"<< exp(beta*deltaData.delta) <<"\n";
@@ -79,16 +79,16 @@ SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
 			{
 				// update current state to the neighbor state and its interaction evolutionary score.
 				int i=0;
-				for(IncEdgeIt it(phylogeny._tree.g,deltaData.treenode);it!=lemon::INVALID;++it,++i)
+				for(IncEdgeIt it(phylogeny->_tree.g,deltaData.treenode);it!=lemon::INVALID;++it,++i)
 				{
-					phylogeny._tree.scoremap[it]=deltaData.updatedScores[i];
+					phylogeny->_tree.scoremap[it]=deltaData.updatedScores[i];
 				}
 			}
 			else
 			{
 				Node treenode=deltaData.treenode;
-				int nodeid=phylogeny._tree.g.id(treenode);
-				GraphData* graphdata=phylogeny.node2graph[nodeid];
+				int nodeid=phylogeny->_tree.g.id(treenode);
+				GraphData* graphdata=phylogeny->node2graph[nodeid];
 				if(graphdata->label2edge->find(deltaData.edgelabel)!=graphdata->label2edge->end())
 				{
 					Edge myedge=graphdata->label2edge->find(deltaData.edgelabel)->second;
@@ -101,7 +101,7 @@ SimulatedAnnealing<PH,OP>::run(Phylogeny& phylogeny)
 			}
 		}
 	}
-	phylogeny.computeDist();
+	phylogeny->computeDist();
 }
 
 #endif
