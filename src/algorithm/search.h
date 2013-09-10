@@ -67,6 +67,7 @@ public:
 	{
 		MyPhylogeny *phylogeny;
 		SubNet *subnet;
+		MySimulatedAnnealing simulatedannealing;
 		int k;
 		int j;
 		unsigned ei;
@@ -80,7 +81,7 @@ public:
 		Node node;
 		typename std::vector<Node>::iterator it;
 		_PrivateVariable()
-		:phylogeny(),subnet(0),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
+		:phylogeny(),subnet(0),simulatedannealing(),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
 		{
 		}
 	} PrivateVariable;
@@ -127,13 +128,16 @@ void
 Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 {
 	searchSeeds(layergraph,networks);
-	MySimulatedAnnealing simulatedannealing;
 	int numAll=0;
 	unsigned csize=refinedSeeds.size();
 	PrivateVariable myPrivateVariable;
-	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,simulatedannealing,csize) private(myPrivateVariable) reduction(+ : numAll)
+	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) private(myPrivateVariable) reduction(+ : numAll)
 	for(unsigned i=0;i<csize;i++)
 	{
+		#pragma omp critical
+		{
+		std::cout << i << std::endl;
+		}
 		for(myPrivateVariable.k=_minExt;myPrivateVariable.k<=_maxExt;myPrivateVariable.k++)
 		{	
 			setExtension(myPrivateVariable);
@@ -147,19 +151,20 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 					myPrivateVariable.phylogeny=new MyPhylogeny();
 					myPrivateVariable.phylogeny->setDsize(myPrivateVariable.k+_seedSize);
 					myPrivateVariable.phylogeny->initial(_treefile,_speciesfiles,myPrivateVariable.subnet,layergraph);
-					//simulatedannealing.run(myPrivateVariable.phylogeny);
+					myPrivateVariable.simulatedannealing.run(myPrivateVariable.phylogeny);
 					numAll++;
-				//	myPrivateVariable.subnet.outputAlignment(myPrivateVariable.phylogeny._tree.overallScore,
-				//											layergraph,
-				//											_resultfolder,
-				//											i,
-				//											myPrivateVariable.k,
-				//											myPrivateVariable.j);
-				//	//if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
-				//	//{
-				//		//_phylogeny.outputInternalGraphs();
-				//		//std::cout << "--------------------------------------" << std::endl;
-				//	//}
+					myPrivateVariable.subnet->outputAlignment(myPrivateVariable.phylogeny->_tree.overallScore,
+															layergraph,
+															_resultfolder,
+															i,
+															myPrivateVariable.k,
+															myPrivateVariable.j);
+					if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+					{
+						myPrivateVariable.phylogeny->outputInternalGraphs();
+						std::cout << "--------------------------------------" << std::endl;
+					}
+					delete myPrivateVariable.phylogeny;
 				}
 			}
 		}
@@ -233,7 +238,8 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 		else
 			++myprivateVariable.it;
 	}
-	while(myprivateVariable.num++<_numExtension)
+	myprivateVariable.num=0;
+	while(myprivateVariable.num++<myprivateVariable.numExtension)
 	{
 		heuristicSearch(myprivateVariable.subnet, 
 						myprivateVariable.usedValidNodes, 
@@ -241,6 +247,7 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 						layergraph,
 						networks);
 	}	
+	
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
