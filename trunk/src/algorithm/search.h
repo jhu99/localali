@@ -85,13 +85,14 @@ public:
 		std::unordered_map<int,bool> usedValidNodes;
 		std::vector<std::string> innerproteins;
 	  std::vector<std::string> neighborproteins;
+	  std::uniform_int_distribution<int> discrete;
 		Node neighbor;
 		Node node;
 		K_Spine pspine;
 		typename std::vector<Node>::iterator it;
-		_PrivateVariable()
+		_PrivateVariable(unsigned dm)
 		:phylogeny(),subnet(),simulatedannealing(),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
-		,innerproteins(),neighborproteins()
+		,innerproteins(),neighborproteins(),discrete(0,dm)
 		{
 		}
 	} PrivateVariable;
@@ -141,7 +142,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	searchSeeds(layergraph,networks);
 	int numAll=0;
 	unsigned csize=refinedSeeds.size();
-	PrivateVariable myPrivateVariable;
+	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 	//#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) firstprivate(myPrivateVariable) reduction(+ : numAll)
 	for(unsigned i=0;i<csize;i++)
 	{
@@ -291,16 +292,15 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-	Search<NP,SN,LG,OP>::heuristicSearch(PrivateVariable& myprivateVariable,LayerGraph& layergraph,NetworkPool& networks)
+Search<NP,SN,LG,OP>::heuristicSearch(PrivateVariable& myprivateVariable,LayerGraph& layergraph,NetworkPool& networks)
 {
-	std::uniform_int_distribution<int> discrete(0,layergraph.validnodes.size()-1);
 	if(myprivateVariable.candidates.size()== 0)
 	{
-		myprivateVariable.dice_roll = discrete(generator);
+		myprivateVariable.dice_roll = myprivateVariable.discrete(generator);
 		myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
 		while(myprivateVariable.usedValidNodes.find(layergraph.graph.id(myprivateVariable.node))!=myprivateVariable.usedValidNodes.end())
 		{
-			myprivateVariable.dice_roll = discrete(generator);
+			myprivateVariable.dice_roll = myprivateVariable.discrete(generator);
 			myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
 		}
 	}else
