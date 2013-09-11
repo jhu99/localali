@@ -49,6 +49,9 @@ public:
 		  states.fill(false);
 	  }
 	  ~_K_Spine(){};
+		void clear()
+		{
+		}
   }K_Spine;
   
   typedef struct _GraphData

@@ -73,16 +73,25 @@ public:
 		int j;
 		unsigned ei;
 		unsigned ej;
+		unsigned sj;
 		int num;
 		int numExtension;
 		int numConnected;
 		int nodeid;
+		int neighborid;
+		int dice_roll;
+		std::string protein;
 		std::vector<Node> candidates;
 		std::unordered_map<int,bool> usedValidNodes;
+		std::vector<std::string> innerproteins;
+	  std::vector<std::string> neighborproteins;
+		Node neighbor;
 		Node node;
+		K_Spine pspine;
 		typename std::vector<Node>::iterator it;
 		_PrivateVariable()
 		:phylogeny(),subnet(),simulatedannealing(),k(0),j(0),ei(0),ej(0),num(0),numExtension(0),numConnected(0),candidates(),usedValidNodes()
+		,innerproteins(),neighborproteins()
 		{
 		}
 	} PrivateVariable;
@@ -92,6 +101,7 @@ public:
 	void setExtension(PrivateVariable&);
 	void searchSeeds(LayerGraph&,NetworkPool&);
 	void searchCandidates(std::unordered_map<int,bool>&,std::vector<Node>&,K_Spine&,LayerGraph&,NetworkPool&);
+	void searchCandidatesParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool sampleSeed(SubNet*,LayerGraph&,NetworkPool&,std::uniform_int_distribution<int>&);
 	int sampleStringElement(int);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
@@ -100,7 +110,7 @@ public:
 	bool checkConnection(SubNet*,LayerGraph&,NetworkPool&);
 	bool checkConnectionParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
 	void expandRefinedSeeds(PrivateVariable&,LayerGraph&,NetworkPool&);
-	bool heuristicSearch(SubNet&,std::unordered_map<int,bool>&,std::vector<Node>&,LayerGraph&,NetworkPool&);
+	bool heuristicSearch(PrivateVariable&,LayerGraph&,NetworkPool&);
 	
 };
 
@@ -132,7 +142,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	int numAll=0;
 	unsigned csize=refinedSeeds.size();
 	PrivateVariable myPrivateVariable;
-	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) firstprivate(myPrivateVariable) reduction(+ : numAll)
+	//#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize) firstprivate(myPrivateVariable) reduction(+ : numAll)
 	for(unsigned i=0;i<csize;i++)
 	{
 		#pragma omp critical
@@ -147,26 +157,29 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 				myPrivateVariable.subnet=*refinedSeeds[i];// a copy of refinedSeeds;
 				expandRefinedSeeds(myPrivateVariable,layergraph,networks);
 				myPrivateVariable.subnet.induceSubgraphs(networks,layergraph);
-				if(checkConnectionParallel(myPrivateVariable,layergraph,networks))
-				{
+				//if(checkConnectionParallel(myPrivateVariable,layergraph,networks))
+				//{
 					myPrivateVariable.phylogeny=new MyPhylogeny();
 					myPrivateVariable.phylogeny->setDsize(myPrivateVariable.k+_seedSize);
 					myPrivateVariable.phylogeny->initial(_treefile,_speciesfiles,myPrivateVariable.subnet,layergraph);
 					myPrivateVariable.simulatedannealing.run(myPrivateVariable.phylogeny);
 					numAll++;
+#pragma omp critical
+					{
 					myPrivateVariable.subnet.outputAlignment(myPrivateVariable.phylogeny->_tree.overallScore,
 															layergraph,
 															_resultfolder,
 															i,
 															myPrivateVariable.k,
 															myPrivateVariable.j);
+					}
 					if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 					{
 						myPrivateVariable.phylogeny->outputInternalGraphs();
 						std::cout << "--------------------------------------" << std::endl;
 					}
 					delete myPrivateVariable.phylogeny;
-				}
+				//}
 			}
 		}
 	}
@@ -180,21 +193,20 @@ Search<NP,SN,LG,OP>::setExtension(PrivateVariable& myPrivateVariable)
 	myPrivateVariable.numExtension=myPrivateVariable.k;
 }
 
-template<typename NP, typename SN, typename LG, typename OP>
-void
+template<typename NP, typename SN, typename LG, typename OP> 
+void 
 Search<NP,SN,LG,OP>::searchCandidates(std::unordered_map<int,bool>& usedValidNodes,
 																			std::vector<Node>& candidates,
 																			K_Spine& pspine,
 																			LayerGraph& layergraph,
-																			NetworkPool& networks)
+																			NetworkPool& networks) 
 {
 	std::vector<std::string> innerproteins;
 	std::vector<std::string> neighborproteins;
 	for(unsigned j=0;j<_numSpecies;j++)
 	{
 		innerproteins.push_back(layergraph.node2label[pspine.data[j]]);
-	}
-	networks.getNeighbors(innerproteins,neighborproteins);
+	}         networks.getNeighbors(innerproteins,neighborproteins);
 	for(unsigned j=0;j<neighborproteins.size();++j)
 	{
 		std::string protein=neighborproteins[j];
@@ -204,6 +216,31 @@ Search<NP,SN,LG,OP>::searchCandidates(std::unordered_map<int,bool>& usedValidNod
 		if(usedValidNodes.find(neighborid)!=usedValidNodes.end())continue;
 		if(find(candidates.begin(),candidates.end(),neighbor)!=candidates.end())continue;
 		candidates.push_back(neighbor);
+	} 
+} 
+
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::searchCandidatesParallel(PrivateVariable& myprivateVariable,
+																			LayerGraph& layergraph,
+																			NetworkPool& networks)
+{
+	myprivateVariable.innerproteins.clear();
+	myprivateVariable.neighborproteins.clear();
+	for(myprivateVariable.sj=0;myprivateVariable.sj<_numSpecies;myprivateVariable.sj++)
+	{
+		myprivateVariable.innerproteins.push_back(layergraph.node2label[myprivateVariable.pspine.data[myprivateVariable.sj]]);
+	}
+	networks.getNeighbors(myprivateVariable.innerproteins,myprivateVariable.neighborproteins);
+	for(myprivateVariable.sj=0;myprivateVariable.sj<myprivateVariable.neighborproteins.size();++myprivateVariable.sj)
+	{
+		myprivateVariable.protein=myprivateVariable.neighborproteins[myprivateVariable.sj];
+		myprivateVariable.neighbor=layergraph.label2node[myprivateVariable.protein];
+		myprivateVariable.neighborid=layergraph.graph.id(myprivateVariable.neighbor);
+		if(layergraph.validnodemap.find(myprivateVariable.neighborid)==layergraph.validnodemap.end())continue;
+		if(myprivateVariable.usedValidNodes.find(myprivateVariable.neighborid)!=myprivateVariable.usedValidNodes.end())continue;
+		if(find(myprivateVariable.candidates.begin(),myprivateVariable.candidates.end(),myprivateVariable.neighbor)!=myprivateVariable.candidates.end())continue;
+		myprivateVariable.candidates.push_back(myprivateVariable.neighbor);
 	}
 }
 
@@ -215,18 +252,20 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 {
 	
 	//// searching neighbors of subnet.
+	myprivateVariable.usedValidNodes.clear();
+	myprivateVariable.candidates.clear();
 	for(myprivateVariable.ei=0;myprivateVariable.ei<myprivateVariable.subnet.net_spines.size();myprivateVariable.ei++)
 	{
+		myprivateVariable.pspine=myprivateVariable.subnet.net_spines[myprivateVariable.ei];
 		for(myprivateVariable.ej=0;myprivateVariable.ej<_numSpecies;myprivateVariable.ej++)
 		{
-			myprivateVariable.node=myprivateVariable.subnet.net_spines[myprivateVariable.ei].data[myprivateVariable.ej];
+			myprivateVariable.node=myprivateVariable.pspine.data[myprivateVariable.ej];
 			myprivateVariable.nodeid=layergraph.graph.id(myprivateVariable.node);
 			if(layergraph.validnodemap.find(myprivateVariable.nodeid)==layergraph.validnodemap.end())continue;
 			myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
 		}
-		searchCandidates(myprivateVariable.usedValidNodes,
-						myprivateVariable.candidates, 
-						myprivateVariable.subnet.net_spines[myprivateVariable.ei], 
+		
+		searchCandidatesParallel(myprivateVariable, 
 						layergraph, 
 						networks);
 	}
@@ -242,49 +281,44 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 	myprivateVariable.num=0;
 	while(myprivateVariable.num++<myprivateVariable.numExtension)
 	{
-		heuristicSearch(myprivateVariable.subnet, 
-						myprivateVariable.usedValidNodes, 
-						myprivateVariable.candidates, 
+		heuristicSearch(myprivateVariable,
 						layergraph,
 						networks);
 	}
-	assert(myprivateVariable.subnet.net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
+	//assert(myprivateVariable.subnet.net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
 	
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-	Search<NP,SN,LG,OP>::heuristicSearch(SubNet& subnet, std::unordered_map<int,bool>& usedValidNodes, std::vector<Node>& candidates,LayerGraph& layergraph,NetworkPool& networks)
+	Search<NP,SN,LG,OP>::heuristicSearch(PrivateVariable& myprivateVariable,LayerGraph& layergraph,NetworkPool& networks)
 {
-	unsigned csize=candidates.size();
 	std::uniform_int_distribution<int> discrete(0,layergraph.validnodes.size()-1);
-	Node node;
-	int dice_roll;
-	if(csize == 0)
+	if(myprivateVariable.candidates.size()== 0)
 	{
-		dice_roll = discrete(generator);
-		node=layergraph.validnodes[dice_roll];
-		while(usedValidNodes.find(layergraph.graph.id(node))!=usedValidNodes.end())
+		myprivateVariable.dice_roll = discrete(generator);
+		myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
+		while(myprivateVariable.usedValidNodes.find(layergraph.graph.id(myprivateVariable.node))!=myprivateVariable.usedValidNodes.end())
 		{
-			dice_roll = discrete(generator);
-			node=layergraph.validnodes[dice_roll];
+			myprivateVariable.dice_roll = discrete(generator);
+			myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
 		}
 	}else
 	{
-		dice_roll = distribution(generator)%csize;
-		node=candidates[dice_roll];
-		candidates.erase(candidates.begin()+dice_roll);
+		myprivateVariable.dice_roll = distribution(generator)%myprivateVariable.candidates.size();
+		myprivateVariable.node=myprivateVariable.candidates[myprivateVariable.dice_roll];
+		myprivateVariable.candidates.erase(myprivateVariable.candidates.begin()+myprivateVariable.dice_roll);
 	}
 	
-	K_Spine pspine;
-	usedValidNodes[layergraph.graph.id(node)]=true;
-	if(!sampleKSpine(node,pspine,layergraph,networks))
+	myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
+	//initial myprivateVariable.pspine;
+	if(!sampleKSpine(myprivateVariable.node,myprivateVariable.pspine,layergraph,networks))// parallize sampleSpine
 	{
 		std::cerr <<"Invalid sample node!"<<std::endl;
 		return false;
 	}
-	subnet.net_spines.push_back(pspine);
-	searchCandidates(usedValidNodes, candidates,pspine,layergraph,networks);
+	myprivateVariable.subnet.net_spines.push_back(myprivateVariable.pspine);
+	searchCandidatesParallel(myprivateVariable,layergraph,networks);
 	
 	return true;
 }
