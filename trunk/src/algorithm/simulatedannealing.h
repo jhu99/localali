@@ -49,7 +49,7 @@ SimulatedAnnealing<PH,OP>::SimulatedAnnealing():
 _tmax(50),
 _tmin(10),
 _Kmax(20),
-_Nmax(50),
+_Nmax(10),
 _k(0.05)
 {
 }
