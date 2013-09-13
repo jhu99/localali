@@ -44,10 +44,10 @@ typedef struct _Option
   {
     profile="./profile.txt";
     numspecies=3;
-    seedsize=5;
+    seedsize=3;
     seedtries=10;
-	minext=5;
-	maxext=10;
+	minext=1;
+	maxext=2;
     numsamples=4000;
     numconnected=2;
     numthreads=1;

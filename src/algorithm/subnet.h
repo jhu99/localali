@@ -51,6 +51,8 @@ public:
 	  ~_K_Spine(){};
 		void clear()
 		{
+			data.fill(Node());
+			states.fill(false);
 		}
   }K_Spine;
   
