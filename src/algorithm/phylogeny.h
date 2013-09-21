@@ -84,6 +84,7 @@ Phylogeny<SN,TR>::Phylogeny()
 {
 }
 
+
 template<typename SN, typename TR>
 Phylogeny<SN,TR>::~Phylogeny()
 {
