@@ -45,7 +45,7 @@ public:
 
 	std::default_random_engine generator;
 	std::uniform_int_distribution<int> distribution;
-	Tree _tree;
+	//Tree _tree;
 	int _dsize;
 	std::string _treefile;
 	std::vector<std::string> _speciesfiles;
@@ -75,7 +75,7 @@ template<typename SN, typename TR>
 Phylogeny<SN,TR>::Phylogeny()
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
-,_tree()
+//,_tree()
 ,_dsize(0)
 ,_speciesfiles()
 ,internalNode()
