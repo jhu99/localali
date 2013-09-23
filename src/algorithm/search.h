@@ -146,7 +146,7 @@ public:
 			MatchingNodeMap* matchingmap;
 			float branchweight;
 			DeltaStructure deltaData;
-			MyPhylogeny *phylogeny;
+			MyPhylogeny phylogeny;
 			_PrivateVariablePlus():
 				distribution(0.0,1.0),simulatedannealing(),deltaData()
 			{
@@ -182,6 +182,7 @@ public:
 	void simulatedAnnealingMethod(PrivateVariablePlus&,MyTree&);
 	void sumupScore(PrivateVariablePlus&);
 	GraphData* constructInternalNodes(Node,PrivateVariablePlus&,LayerGraph&,MyTree&);
+	bool interfere(PrivateVariablePlus& myPrivateVariablePlus,MyTree& localtree);
 };
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -219,8 +220,8 @@ Search<NP,SN,LG,OP>::initialExternalNodes(PrivateVariablePlus& myPrivateVariable
 	{
 		myPrivateVariablePlus.element=_speciesfiles[myPrivateVariablePlus.si];
 		myPrivateVariablePlus.node=localtree.label2node[myPrivateVariablePlus.element];
-		myPrivateVariablePlus.phylogeny->node2graph[localtree.g.id(myPrivateVariablePlus.node)]=myPrivateVariablePlus.subnet->subgraphs[myPrivateVariablePlus.si];
-		myPrivateVariablePlus.phylogeny->externalNode.push_back(myPrivateVariablePlus.node);
+		myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.node)]=myPrivateVariablePlus.subnet->subgraphs[myPrivateVariablePlus.si];
+		myPrivateVariablePlus.phylogeny.externalNode.push_back(myPrivateVariablePlus.node);
 	}
 	return true;
 }
@@ -242,7 +243,7 @@ typename Search<NP,SN,LG,OP>::GraphData*
 Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& myPrivateVariablePlus,LayerGraph& layergraph,MyTree& localtree)
 {
 	myPrivateVariablePlus.graphdata=new GraphData();
-	myPrivateVariablePlus.phylogeny->node2graph[localtree.g.id(ancestor)]=myPrivateVariablePlus.graphdata;
+	myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(ancestor)]=myPrivateVariablePlus.graphdata;
 	for(myPrivateVariablePlus.incE=IncEdgeIt(localtree.g,ancestor);myPrivateVariablePlus.incE!=lemon::INVALID;++myPrivateVariablePlus.incE)
 	{
 		myPrivateVariablePlus.rnode=localtree.g.runningNode(myPrivateVariablePlus.incE);
@@ -253,17 +254,17 @@ Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& 
 			continue;
 		}
 		//sonnodes.push_back(myPrivateVariablePlus.rnode);
-		if(myPrivateVariablePlus.phylogeny->node2graph.find(localtree.g.id(myPrivateVariablePlus.rnode))==myPrivateVariablePlus.phylogeny->node2graph.end())
+		if(myPrivateVariablePlus.phylogeny.node2graph.find(localtree.g.id(myPrivateVariablePlus.rnode))==myPrivateVariablePlus.phylogeny.node2graph.end())
 		{
 			myPrivateVariablePlus.processnode.push_back(myPrivateVariablePlus.rnode);
 			myPrivateVariablePlus.sondata=constructInternalNodes(myPrivateVariablePlus.rnode,myPrivateVariablePlus,layergraph,localtree);
 			myPrivateVariablePlus.rnode=myPrivateVariablePlus.processnode.back();
 			myPrivateVariablePlus.processnode.pop_back();
-			myPrivateVariablePlus.phylogeny->internalNode.push_back(myPrivateVariablePlus.rnode);
+			myPrivateVariablePlus.phylogeny.internalNode.push_back(myPrivateVariablePlus.rnode);
 		}else{
-			myPrivateVariablePlus.sondata=myPrivateVariablePlus.phylogeny->node2graph[localtree.g.id(myPrivateVariablePlus.rnode)];
+			myPrivateVariablePlus.sondata=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.rnode)];
 		}
-		myPrivateVariablePlus.graphdata=myPrivateVariablePlus.phylogeny->node2graph[localtree.g.id(ancestor)];
+		myPrivateVariablePlus.graphdata=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(ancestor)];
 		myPrivateVariablePlus.incE=myPrivateVariablePlus.processinc.back();
 		myPrivateVariablePlus.processinc.pop_back();
 		for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.sondata->offsprings.size();++myPrivateVariablePlus.si)
@@ -327,13 +328,13 @@ Search<NP,SN,LG,OP>::computeBranchWeight(PrivateVariablePlus& myPrivateVariableP
 	myPrivateVariablePlus.id2=localtree.g.id(myPrivateVariablePlus.node2);
 	if(myPrivateVariablePlus.node2<myPrivateVariablePlus.node1)
 	{
-		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny->node2graph[myPrivateVariablePlus.id2];
-		myPrivateVariablePlus.ancestor=myPrivateVariablePlus.phylogeny->node2graph[myPrivateVariablePlus.id1];
+		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id2];
+		myPrivateVariablePlus.ancestor=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id1];
 	}
 	else
 	{
-		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny->node2graph[myPrivateVariablePlus.id1];
-		myPrivateVariablePlus.ancestor=myPrivateVariablePlus.phylogeny->node2graph[myPrivateVariablePlus.id2];
+		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id1];
+		myPrivateVariablePlus.ancestor=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id2];
 	}
 	
 	for( myPrivateVariablePlus.cit=myPrivateVariablePlus.descedant->label2node->begin();myPrivateVariablePlus.cit!=myPrivateVariablePlus.descedant->label2node->end();++myPrivateVariablePlus.cit)
@@ -429,16 +430,79 @@ template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::initialPhylogy(PrivateVariablePlus& myPrivateVariablePlus,LayerGraph& layergraph,MyTree& localtree)
 {
-	myPrivateVariablePlus.phylogeny->internalNode.clear();
-	myPrivateVariablePlus.phylogeny->externalNode.clear();
-	myPrivateVariablePlus.phylogeny->node2graph.clear();
+	myPrivateVariablePlus.phylogeny.internalNode.clear();
+	myPrivateVariablePlus.phylogeny.externalNode.clear();
+	myPrivateVariablePlus.phylogeny.node2graph.clear();
 	initialExternalNodes(myPrivateVariablePlus,localtree);
 	constructInternalNodes(localtree.root, myPrivateVariablePlus,layergraph,localtree);//shrink to 3 parameters
-	myPrivateVariablePlus.phylogeny->internalNode.push_back(localtree.root);
+	myPrivateVariablePlus.phylogeny.internalNode.push_back(localtree.root);
 	initialBranchWeight(myPrivateVariablePlus,localtree);
 	return true;
 }
 
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,MyTree& localtree)
+{
+	//int dice_roll=distribution(generator)%internalNode.size();
+	//int upperId,dice_1,dice_2;
+	//Node intNode = internalNode[dice_roll];
+	//GraphData* graphdata=node2graph[_tree.g.id(intNode)];
+	//upperId=graphdata->nodeNum;
+	//if(upperId<2) return false;
+	//Node nodeA,nodeB;
+	//dice_1 = distribution(generator)%upperId;
+	//nodeA = graphdata->g->nodeFromId(dice_1);
+	//dice_2 = distribution(generator)%upperId;
+	//while(dice_1==dice_2)
+	//{
+		//dice_2 = distribution(generator)%upperId;
+	//}
+	//nodeB = graphdata->g->nodeFromId(dice_2);
+	//std::string edgelabel=graphdata->formEdgeLabel(nodeA,nodeB);
+	//deltaStr.treenode=intNode;
+	//deltaStr.nodeA=nodeA;
+	//deltaStr.nodeB=nodeB;
+	//deltaStr.edgelabel=edgelabel;
+	//if(graphdata->label2edge->find(edgelabel)!=graphdata->label2edge->end())
+	//{
+		////delete edge
+		//Edge myedge=graphdata->label2edge->find(edgelabel)->second;
+		//graphdata->deleteEdge(myedge,edgelabel);
+	//}
+	//else{
+		//// add edge
+		//graphdata->addEdge(nodeA,nodeB);
+	//}
+
+	//// Compute the gap between the two scores, but without changes of their original score attritubtion.
+	//GraphData *ancestor, *descendant;
+	//Score deltaScore;
+	//int i=0;
+	//for(IncEdgeIt it(_tree.g,intNode);it!=lemon::INVALID;++it,++i)
+	//{
+		//Score updatedScore;
+		//Node neighbor=_tree.g.runningNode(it);
+		//descendant=node2graph[_tree.g.id(neighbor)];
+		//if(neighbor<intNode)
+		//{
+			//ancestor=graphdata;
+		//}else
+		//{
+			//ancestor=descendant;
+			//descendant=graphdata;
+		//}
+		//computeScore(updatedScore,_tree.matchingedgemap[it],ancestor,descendant,_tree.branchmap[it]);
+		//deltaScore+=updatedScore;
+		//deltaScore-=_tree.scoremap[it];
+		//deltaStr.updatedScores[i]=updatedScore;
+	//}
+	//deltaStr.delta=deltaScore.sumup();
+
+	//if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	//std::cout << deltaStr.delta << std::endl;
+	return true;
+}
 template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,LayerGraph& layergraph,NetworkPool& networks)
@@ -534,11 +598,9 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		{
 			std::cout << i <<"/"<<csize << std::endl;
 		}
-		myPrivateVariablePlus.phylogeny=new MyPhylogeny();
-		//myPrivateVariablePlus.phylogeny->_tree.readTree(_treefile);
 		myPrivateVariablePlus.subnet=mySubNetList[i];
 		induceSubgraphs(myPrivateVariablePlus,layergraph,networks);
-		myPrivateVariablePlus.phylogeny->_dsize=myPrivateVariablePlus.subnet->net_spines.size();
+		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
 	}
@@ -560,7 +622,7 @@ void
 		myPrivateVariable.beta = -1.0/(myPrivateVariable.simulatedannealing._k*myPrivateVariable.st);
 		for(myPrivateVariable.si=0;myPrivateVariable.si<myPrivateVariable.simulatedannealing._Nmax;++myPrivateVariable.si)
 		{
-			//if(!myPrivateVariable.phylogeny->interfere(myPrivateVariable.deltaData))continue;
+			if(!interfere(myPrivateVariable,localtree))continue;
 			myPrivateVariable.sampledata=myPrivateVariable.distribution(myPrivateVariable.generator);
 			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 				std::cout <<myPrivateVariable.deltaData.delta <<"\t" << myPrivateVariable.sampledata<<"\t"<< exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta) <<"\n";
@@ -577,7 +639,7 @@ void
 			{
 				myPrivateVariable.node=myPrivateVariable.deltaData.treenode;
 				myPrivateVariable.id1=localtree.g.id(myPrivateVariable.node);
-				myPrivateVariable.graphdata=myPrivateVariable.phylogeny->node2graph[myPrivateVariable.id1];
+				myPrivateVariable.graphdata=myPrivateVariable.phylogeny.node2graph[myPrivateVariable.id1];
 				if(myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)!=myPrivateVariable.graphdata->label2edge->end())
 				{
 					 myPrivateVariable.myedge=myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)->second;
@@ -603,7 +665,7 @@ Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,MyTree& 
 	}
 	sumupScore(myPrivateVariable);
 	localtree.distEvolution.sumup();
-	localtree.overallScore=myPrivateVariable.phylogeny->_dsize/myPrivateVariable.sumDist;
+	localtree.overallScore=myPrivateVariable.phylogeny._dsize/myPrivateVariable.sumDist;
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 		std::cout << localtree.overallScore << std::endl;
 }
