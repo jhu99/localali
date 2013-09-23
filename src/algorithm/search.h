@@ -115,11 +115,11 @@ public:
 	} PrivateVariable;
 		typedef struct _PrivateVariablePlus
 		{
-			float step,beta,sampledata;
+			float step,beta,sampledata,sumDist;
 			unsigned seed;
 			std::default_random_engine generator;
 			std::uniform_real_distribution<float> distribution;
-			int si,sj,sk,st,mykey,id1,id2,numElement,maxdegree,conNum;
+			unsigned si,sj,sk,st,mykey,id1,id2,numElement,maxdegree,conNum;
 			SubNet *subnet;
 			GraphData *graphdata, *sondata, *descedant, *ancestor;
 			Node node,node1,node2,node3,node4,rnode,anode,dnode;
@@ -178,8 +178,10 @@ public:
 	bool initialBranchWeight(PrivateVariablePlus&);
 	bool computeBranchWeight(PrivateVariablePlus&);
 	bool computeScore(PrivateVariablePlus&);
+	void computeDist(PrivateVariablePlus&);
 	bool clearScore(PrivateVariablePlus&);
 	void simulatedAnnealingMethod(PrivateVariablePlus&);
+	void sumupScore(PrivateVariablePlus&);
 	GraphData* constructInternalNodes(Node,PrivateVariablePlus&,LayerGraph&);
 };
 
@@ -226,7 +228,7 @@ Search<NP,SN,LG,OP>::initialExternalNodes(PrivateVariablePlus& myPrivateVariable
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
-typename Search<NP,SN,LG,OP>::existNode(PrivateVariablePlus& myPrivateVariablePlus)
+Search<NP,SN,LG,OP>::existNode(PrivateVariablePlus& myPrivateVariablePlus)
 {
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.xspine.size();myPrivateVariablePlus.si++)
 	{
@@ -501,7 +503,6 @@ void
 Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 {
 	searchSeeds(layergraph,networks);
-	int numAll=0;
 	int csize=refinedSeeds.size();
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 	std::vector<SubNet*> mySubNetList;
@@ -589,17 +590,32 @@ Search<NP,SN,LG,OP>::simulatedAnnealingMethod(PrivateVariablePlus& myPrivateVari
 		}
 	}
 	computeDist(myPrivateVariable);
-	//myPrivateVariable.phylogeny->computeDist();
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable)
 {
-	myPrivateVariable.phylogeny->_tree.computeDistEvolution(_dsize);
+	for(myPrivateVariable.ie=EdgeIt(myPrivateVariable.phylogeny->_tree.g);myPrivateVariable.ie!=lemon::INVALID;++myPrivateVariable.ie)
+	{
+		myPrivateVariable.phylogeny->_tree.distEvolution+=myPrivateVariable.phylogeny->_tree.scoremap[myPrivateVariable.ie];
+	}
+	sumupScore(myPrivateVariable);
+	myPrivateVariable.phylogeny->_tree.distEvolution.sumup();
+	myPrivateVariable.phylogeny->_tree.overallScore=myPrivateVariable.phylogeny->_dsize/myPrivateVariable.sumDist;
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 		std::cout << myPrivateVariable.phylogeny->_tree.overallScore << std::endl;
-	return true;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::sumupScore(PrivateVariablePlus& myPrivateVariable)
+{
+	myPrivateVariable.sumDist=0;
+	for(myPrivateVariable.si=0;myPrivateVariable.si<4;myPrivateVariable.si++)
+	{
+		myPrivateVariable.sumDist+=myPrivateVariable.score.fscore[myPrivateVariable.si];
+	}
 }
 
 
