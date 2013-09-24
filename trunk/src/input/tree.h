@@ -45,6 +45,8 @@ public:
 	typedef std::unordered_multimap<int, typename Graph::Node> MatchingNodeMap;
 	/// Nodes matching map for each branch.
 	typedef typename Graph::template EdgeMap<MatchingNodeMap*> MatchingEdgeMap;
+	typedef std::unordered_map<std::string, EdgeIt> LabelEdgeMap;
+	
 
 	/// Hold the topology of this tree.
 	Graph g;
@@ -59,6 +61,8 @@ public:
 	OrigLabelNodeMap node2label;
 	/// The nodes for the labels.
 	InvOrigLabelNodeMap label2node;
+	/// The labels for each edges.
+	LabelEdgeMap	label2edge;
 	/// The lengths for the branches in the tree.
 	WeightEdgeMap branchmap;
 	/// The local alignment score for each branch in the tree.
@@ -183,6 +187,25 @@ Tree<GR,OP>::constructTree(std::string sentence)
 				constructor.pop();
 				constructor.pop();
 			}			
+		}
+	}
+	for(EdgeIt ie(g);ie!=lemon::INVALID;++ie)
+	{
+		int nodeid1,nodeid2;
+		Node node1,node2;
+		std::string edgelabel;
+		node1=g.u(ie);
+		node2=g.v(ie);
+		nodeid1=g.id(node1);
+		nodeid2=g.id(node2);
+		if(nodeid1<nodeid2)
+		{
+			edgelabel.append(convert_num2str(nodeid1));
+			edgelabel.append(convert_num2str(nodeid2));
+		}else
+		{
+			edgelabel.append(convert_num2str(nodeid2));
+			edgelabel.append(convert_num2str(nodeid1));
 		}
 	}
 	return true;
