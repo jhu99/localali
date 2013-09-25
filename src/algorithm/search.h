@@ -46,6 +46,7 @@ public:
 	typedef typename MyTree::MatchingNodeMap MatchingNodeMap;
 	typedef typename MatchingNodeMap::iterator MatchingNodeMapIt;
 	typedef typename Graph::template EdgeMap<Score> ScoreEdgeMap;
+	typedef typename Graph::template EdgeMap<MatchingNodeMap*> MatchingEdgeMap;
   
 	
   /// Labels of the nodes.
@@ -147,7 +148,8 @@ public:
 			SpineList incSpines;
 			Score score, deltaScore, updatedScore, distEvolution;;
 			ScoreEdgeMap *scoremap;
-			MatchingNodeMap* matchingmap;
+			MatchingNodeMap *matchingmap;
+			MatchingEdgeMap *matchingedgemap; 
 			float branchweight;
 			DeltaStructure deltaData;
 			MyPhylogeny phylogeny;
@@ -356,7 +358,7 @@ Search<NP,SN,LG,OP>::computeBranchWeight(PrivateVariablePlus& myPrivateVariableP
 			if(myPrivateVariablePlus.isExist)continue;
 		  myPrivateVariablePlus.matchingmap->insert(std::make_pair(myPrivateVariablePlus.mykey,myPrivateVariablePlus.dnode));// A general error may look like: std::make_pair<int, Node>(mykey,myPrivateVariablePlus.dnode)
 	}
-	//localtree.matchingedgemap[myPrivateVariablePlus.ie]=myPrivateVariablePlus.matchingmap;
+	myPrivateVariablePlus.matchingedgemap->set(myPrivateVariablePlus.ie,myPrivateVariablePlus.matchingmap);//[myPrivateVariablePlus.myedge]=myPrivateVariablePlus.matchingmap;
 	computeScore(myPrivateVariablePlus,localtree);
 	return true;
 }
@@ -368,6 +370,7 @@ Search<NP,SN,LG,OP>::computeScore(PrivateVariablePlus& myPrivateVariablePlus,con
 	myPrivateVariablePlus.maxdegree=myPrivateVariablePlus.ancestor->maxDegree;
 	myPrivateVariablePlus.branchweight=localtree.branchmap[myPrivateVariablePlus.ie];
 	if(0==myPrivateVariablePlus.maxdegree)myPrivateVariablePlus.maxdegree=1;
+	myPrivateVariablePlus.score.fscore.fill(0.0);
 	for(myPrivateVariablePlus.nit1=NodeIt(*myPrivateVariablePlus.ancestor->g);myPrivateVariablePlus.nit1!=lemon::INVALID;++myPrivateVariablePlus.nit1)
 	{
 		myPrivateVariablePlus.mykey=myPrivateVariablePlus.ancestor->g->id(myPrivateVariablePlus.nit1);
@@ -478,6 +481,7 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 	}
 
 	myPrivateVariablePlus.si=0;
+	myPrivateVariablePlus.deltaScore.fscore.fill(0);
 	//// Compute the gap between the two scores, but without changes of their original score attritubtion.
 	for(myPrivateVariablePlus.incE=IncEdgeIt(localtree.g,myPrivateVariablePlus.node);myPrivateVariablePlus.incE!=lemon::INVALID;++myPrivateVariablePlus.incE,++myPrivateVariablePlus.si)
 	{
@@ -491,14 +495,24 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 			myPrivateVariablePlus.ancestor=myPrivateVariablePlus.descedant;
 			myPrivateVariablePlus.descedant=myPrivateVariablePlus.graphdata;
 		}
-
+		myPrivateVariablePlus.edgelabel.clear();
+		if(myPrivateVariablePlus.node < myPrivateVariablePlus.rnode)
+		{
+			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.node)));
+			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.rnode)));
+		}else
+		{
+			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.rnode)));
+			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.node)));
+		}
+		myPrivateVariablePlus.ie=localtree.label2edge.at(myPrivateVariablePlus.edgelabel);
 		computeScore(myPrivateVariablePlus,localtree);
-		myPrivateVariablePlus.deltaScore+=myPrivateVariablePlus.updatedScore;
+		
+		myPrivateVariablePlus.deltaScore+=myPrivateVariablePlus.score;
 		myPrivateVariablePlus.deltaScore-=(*myPrivateVariablePlus.scoremap)[myPrivateVariablePlus.incE];
-		myPrivateVariablePlus.deltaData.updatedScores[myPrivateVariablePlus.si]=myPrivateVariablePlus.updatedScore;
+		myPrivateVariablePlus.deltaData.updatedScores[myPrivateVariablePlus.si]=myPrivateVariablePlus.score;
 	}
 	myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.deltaScore.sumup();
-
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	std::cout << myPrivateVariablePlus.deltaData.delta << std::endl;
 	return true;
@@ -554,6 +568,7 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 				 if((*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2]>myPrivateVariablePlus.graphdata->maxDegree)
 					 myPrivateVariablePlus.graphdata->maxDegree=(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2];
 				 myPrivateVariablePlus.graphdata->edgeNum++;
+
 			}
 		}
 		myPrivateVariablePlus.subnet->subgraphs.push_back(myPrivateVariablePlus.graphdata);
@@ -599,12 +614,16 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 			std::cout << i+1 <<"/"<<csize << std::endl;
 			myPrivateVariablePlus.scoremap=new ScoreEdgeMap(localtree.g);
 			myPrivateVariablePlus.matchingmap=new MatchingNodeMap();
+			myPrivateVariablePlus.matchingedgemap=new MatchingEdgeMap(localtree.g);
 		}
 		myPrivateVariablePlus.subnet=mySubNetList[i];
 		induceSubgraphs(myPrivateVariablePlus,layergraph,networks);
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
+		delete myPrivateVariablePlus.scoremap;
+		delete myPrivateVariablePlus.matchingmap;
+		delete myPrivateVariablePlus.matchingedgemap;
 	}
 	std::cout << csize << std::endl;
 }
@@ -624,7 +643,7 @@ void
 		myPrivateVariable.beta = -1.0/(myPrivateVariable.simulatedannealing._k*myPrivateVariable.st);
 		for(myPrivateVariable.si=0;myPrivateVariable.si<myPrivateVariable.simulatedannealing._Nmax;++myPrivateVariable.si)
 		{
-			if(!interfere(myPrivateVariable,localtree))continue;
+			if(!interfere(myPrivateVariable,localtree))continue;// unsafe for example sumup();
 			myPrivateVariable.sampledata=myPrivateVariable.distribution(myPrivateVariable.generator);
 			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 				std::cout <<myPrivateVariable.deltaData.delta <<"\t" << myPrivateVariable.sampledata<<"\t"<< exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta) <<"\n";

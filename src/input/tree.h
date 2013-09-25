@@ -207,6 +207,7 @@ Tree<GR,OP>::constructTree(std::string sentence)
 			edgelabel.append(convert_num2str(nodeid2));
 			edgelabel.append(convert_num2str(nodeid1));
 		}
+		label2edge[edgelabel]=ie;
 	}
 	return true;
 }
