@@ -117,7 +117,7 @@ public:
 	} PrivateVariable;
 		typedef struct _PrivateVariablePlus
 		{
-			float step,beta,sampledata,sumDist;
+			float step,beta,sampledata,sumDist,overallScore;
 			unsigned seed;
 			std::default_random_engine generator;
 			std::uniform_real_distribution<float> distribution;
@@ -145,7 +145,7 @@ public:
 			SpineList::iterator sit;
 			MatchingNodeMapIt mit,mit1,mit2;
 			SpineList incSpines;
-			Score score, deltaScore, updatedScore;
+			Score score, deltaScore, updatedScore, distEvolution;;
 			ScoreEdgeMap *scoremap;
 			MatchingNodeMap* matchingmap;
 			float branchweight;
@@ -425,7 +425,7 @@ Search<NP,SN,LG,OP>::initialBranchWeight(PrivateVariablePlus& myPrivateVariableP
 	{
 		myPrivateVariablePlus.score.fscore.fill(0.0);
 		computeBranchWeight(myPrivateVariablePlus,localtree);
-		//localtree.scoremap[myPrivateVariablePlus.ie]=myPrivateVariablePlus.score;
+		(*myPrivateVariablePlus.scoremap)[myPrivateVariablePlus.ie]=myPrivateVariablePlus.score;
 	}
 	return true;
 }
@@ -494,7 +494,7 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 
 		computeScore(myPrivateVariablePlus,localtree);
 		myPrivateVariablePlus.deltaScore+=myPrivateVariablePlus.updatedScore;
-		myPrivateVariablePlus.deltaScore-=localtree.scoremap[myPrivateVariablePlus.incE];
+		myPrivateVariablePlus.deltaScore-=(*myPrivateVariablePlus.scoremap)[myPrivateVariablePlus.incE];
 		myPrivateVariablePlus.deltaData.updatedScores[myPrivateVariablePlus.si]=myPrivateVariablePlus.updatedScore;
 	}
 	myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.deltaScore.sumup();
@@ -597,12 +597,14 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		#pragma omp critical
 		{
 			std::cout << i+1 <<"/"<<csize << std::endl;
+			myPrivateVariablePlus.scoremap=new ScoreEdgeMap(localtree.g);
+			myPrivateVariablePlus.matchingmap=new MatchingNodeMap();
 		}
 		myPrivateVariablePlus.subnet=mySubNetList[i];
 		induceSubgraphs(myPrivateVariablePlus,layergraph,networks);
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
-		//simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
+		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
 	}
 	std::cout << csize << std::endl;
 }
@@ -632,7 +634,8 @@ void
 				myPrivateVariable.sj=0;
 				for(myPrivateVariable.incE=IncEdgeIt(localtree.g,myPrivateVariable.deltaData.treenode);myPrivateVariable.incE!=lemon::INVALID;++myPrivateVariable.incE,++myPrivateVariable.sj)
 				{
-					localtree.scoremap[myPrivateVariable.incE]=myPrivateVariable.deltaData.updatedScores[myPrivateVariable.sj];
+					//localtree.scoremap[myPrivateVariable.incE]=myPrivateVariable.deltaData.updatedScores[myPrivateVariable.sj];
+					(*myPrivateVariable.scoremap)[myPrivateVariable.incE]=myPrivateVariable.deltaData.updatedScores[myPrivateVariable.sj];
 				}
 			}
 			else
@@ -661,11 +664,11 @@ Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,const My
 {
 	for(myPrivateVariable.ie=EdgeIt(localtree.g);myPrivateVariable.ie!=lemon::INVALID;++myPrivateVariable.ie)
 	{
-		localtree.distEvolution+=localtree.scoremap[myPrivateVariable.ie];
+		myPrivateVariable.distEvolution+=(*myPrivateVariable.scoremap)[myPrivateVariable.ie];
 	}
 	sumupScore(myPrivateVariable);
-	localtree.distEvolution.sumup();
-	localtree.overallScore=myPrivateVariable.phylogeny._dsize/myPrivateVariable.sumDist;
+	myPrivateVariable.distEvolution.sumup();
+	myPrivateVariable.overallScore=myPrivateVariable.phylogeny._dsize/myPrivateVariable.sumDist;
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 		std::cout << localtree.overallScore << std::endl;
 }

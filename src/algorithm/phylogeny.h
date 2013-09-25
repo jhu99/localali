@@ -52,7 +52,7 @@ public:
 	std::vector<Node> internalNode;
 	std::vector<Node> externalNode;
 	std::unordered_map<int,GraphData*> node2graph;
-
+	
 	//Phylogeny();
 	Phylogeny();//dsize is the number of k-spines.
 	~Phylogeny();
