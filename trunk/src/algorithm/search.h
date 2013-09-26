@@ -123,6 +123,7 @@ public:
 			std::default_random_engine generator;
 			std::uniform_real_distribution<float> distribution;
 			unsigned si,sj,sk,st,mykey,id1,id2,numElement,maxdegree,conNum,dice_roll,upperId,dice_1,dice_2;
+			int degree1,degree2;
 			SubNet *subnet;
 			GraphData *graphdata, *sondata, *descedant, *ancestor;
 			Node node,node1,node2,node3,node4,rnode,anode,dnode;
@@ -153,6 +154,7 @@ public:
 			float branchweight;
 			DeltaStructure deltaData;
 			MyPhylogeny phylogeny;
+			std::ofstream fout;
 			_PrivateVariablePlus():
 				distribution(0.0,1.0),simulatedannealing(),deltaData()
 			{
@@ -185,11 +187,16 @@ public:
 	bool computeScore(PrivateVariablePlus&,const MyTree&);
 	void computeDist(PrivateVariablePlus&,const MyTree&);
 	bool clearScore(PrivateVariablePlus&);
-	bool clearStructure(PrivateVariablePlus&);
+	bool clearStructure(PrivateVariablePlus&,const MyTree&);
 	void simulatedAnnealingMethod(PrivateVariablePlus&,const MyTree&);
-	void sumupScore(PrivateVariablePlus&);
+	void sumupScore(PrivateVariablePlus&,Score&);
 	GraphData* constructInternalNodes(Node,PrivateVariablePlus&,LayerGraph&,const MyTree&);
-	bool interfere(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree);
+	bool interfere(PrivateVariablePlus&,const MyTree&);
+	void deleteEdge(PrivateVariablePlus&);
+	void addEdge(PrivateVariablePlus&);
+	void formEdgeLabel(PrivateVariablePlus&);
+	void outsubgraphs(LayerGraph&,PrivateVariablePlus&);
+	void output(LayerGraph&,PrivateVariablePlus&);
 };
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -220,15 +227,19 @@ bool Search<NP,SN,LG,OP>::clearScore(PrivateVariablePlus& myPrivateVariablePlus)
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
-bool Search<NP,SN,LG,OP>::clearStructure(PrivateVariablePlus& myPrivateVariablePlus)
+bool Search<NP,SN,LG,OP>::clearStructure(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree)
 {
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.phylogeny.node2graph.size();myPrivateVariablePlus.si++)
 	{
 		delete myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.si];
 	}
+	for(myPrivateVariablePlus.ie=EdgeIt(localtree.g);myPrivateVariablePlus.ie!=lemon::INVALID;++myPrivateVariablePlus.ie)
+	{
+		delete (*myPrivateVariablePlus.matchingedgemap)[myPrivateVariablePlus.ie];
+	}
 	delete myPrivateVariablePlus.scoremap;
-	delete myPrivateVariablePlus.matchingmap;
 	delete myPrivateVariablePlus.matchingedgemap;
+	delete myPrivateVariablePlus.subnet;
 	return true;
 }
 
@@ -412,11 +423,12 @@ Search<NP,SN,LG,OP>::computeScore(PrivateVariablePlus& myPrivateVariablePlus,con
 		myPrivateVariablePlus.range2=myPrivateVariablePlus.matchingmap->equal_range(myPrivateVariablePlus.id2);
 		for(myPrivateVariablePlus.mit1=myPrivateVariablePlus.range1.first;myPrivateVariablePlus.mit1!=myPrivateVariablePlus.range1.second;++myPrivateVariablePlus.mit1)
 		{
-			myPrivateVariablePlus.node3=myPrivateVariablePlus.mit1->second;
+			myPrivateVariablePlus.node1=myPrivateVariablePlus.mit1->second;
 			for(myPrivateVariablePlus.mit2=myPrivateVariablePlus.range2.first;myPrivateVariablePlus.mit2!=myPrivateVariablePlus.range2.second;++myPrivateVariablePlus.mit2)
 			{
-				myPrivateVariablePlus.node4=myPrivateVariablePlus.mit2->second;
-				myPrivateVariablePlus.edgelabel=myPrivateVariablePlus.descedant->formEdgeLabel(myPrivateVariablePlus.node3,myPrivateVariablePlus.node4);
+				myPrivateVariablePlus.node2=myPrivateVariablePlus.mit2->second;
+				//myPrivateVariablePlus.edgelabel=myPrivateVariablePlus.descedant->formEdgeLabel(myPrivateVariablePlus.node3,myPrivateVariablePlus.node4);
+				formEdgeLabel(myPrivateVariablePlus);
 				if(myPrivateVariablePlus.descedant->label2edge->find(myPrivateVariablePlus.edgelabel)!=myPrivateVariablePlus.descedant->label2edge->end())
 				{
 					myPrivateVariablePlus.conNum++;
@@ -462,6 +474,56 @@ Search<NP,SN,LG,OP>::initialPhylogy(PrivateVariablePlus& myPrivateVariablePlus,L
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
+void 
+Search<NP,SN,LG,OP>::deleteEdge(PrivateVariablePlus& myPrivateVariablePlus)
+{
+	myPrivateVariablePlus.node1=myPrivateVariablePlus.graphdata->g->u(myPrivateVariablePlus.myedge);
+	myPrivateVariablePlus.node2=myPrivateVariablePlus.graphdata->g->v(myPrivateVariablePlus.myedge);
+	myPrivateVariablePlus.degree1=(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node1]--;
+	myPrivateVariablePlus.degree2=(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2]--;
+	myPrivateVariablePlus.graphdata->edgeNum--;
+	myPrivateVariablePlus.graphdata->g->erase(myPrivateVariablePlus.myedge);
+	myPrivateVariablePlus.graphdata->label2edge->erase(myPrivateVariablePlus.edgelabel);
+	if(myPrivateVariablePlus.degree1==myPrivateVariablePlus.graphdata->maxDegree || myPrivateVariablePlus.degree2==myPrivateVariablePlus.graphdata->maxDegree)
+	{
+		myPrivateVariablePlus.graphdata->maxDegree--;
+		for(myPrivateVariablePlus.nit1=NodeIt(*myPrivateVariablePlus.graphdata->g);myPrivateVariablePlus.nit1!=lemon::INVALID;++myPrivateVariablePlus.nit1)
+		{
+			if((*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.nit1]>myPrivateVariablePlus.graphdata->maxDegree)myPrivateVariablePlus.graphdata->maxDegree++;
+		}
+	}
+}	
+
+template<typename NP, typename SN, typename LG, typename OP>
+void
+Search<NP,SN,LG,OP>::formEdgeLabel(PrivateVariablePlus& myPrivateVariablePlus)
+{
+	myPrivateVariablePlus.edgelabel.clear();
+	if(myPrivateVariablePlus.node2 < myPrivateVariablePlus.node1)
+	{
+		myPrivateVariablePlus.edgelabel.append(convert_num2str(myPrivateVariablePlus.graphdata->g->id(myPrivateVariablePlus.node2)));
+		myPrivateVariablePlus.edgelabel.append(convert_num2str(myPrivateVariablePlus.graphdata->g->id(myPrivateVariablePlus.node1)));
+	}else
+	{
+		myPrivateVariablePlus.edgelabel.append(convert_num2str(myPrivateVariablePlus.graphdata->g->id(myPrivateVariablePlus.node1)));
+		myPrivateVariablePlus.edgelabel.append(convert_num2str(myPrivateVariablePlus.graphdata->g->id(myPrivateVariablePlus.node2)));
+	}
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void 
+Search<NP,SN,LG,OP>::addEdge(PrivateVariablePlus& myPrivateVariablePlus)
+{
+	myPrivateVariablePlus.degree1=++(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node1];
+	myPrivateVariablePlus.degree2=++(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2];
+	myPrivateVariablePlus.graphdata->edgeNum++;
+	myPrivateVariablePlus.myedge=myPrivateVariablePlus.graphdata->g->addEdge(myPrivateVariablePlus.node1,myPrivateVariablePlus.node2);
+	if(myPrivateVariablePlus.degree1>myPrivateVariablePlus.graphdata->maxDegree || myPrivateVariablePlus.degree2>myPrivateVariablePlus.graphdata->maxDegree)myPrivateVariablePlus.graphdata->maxDegree++;
+	formEdgeLabel(myPrivateVariablePlus);
+	(*myPrivateVariablePlus.graphdata->label2edge)[myPrivateVariablePlus.edgelabel]=myPrivateVariablePlus.myedge;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree)
 {
@@ -478,7 +540,7 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 		myPrivateVariablePlus.dice_2 = myPrivateVariablePlus.phylogeny.distribution(generator)%myPrivateVariablePlus.upperId;
 	}
 	myPrivateVariablePlus.node2 = myPrivateVariablePlus.graphdata->g->nodeFromId(myPrivateVariablePlus.dice_2);
-	myPrivateVariablePlus.edgelabel=myPrivateVariablePlus.graphdata->formEdgeLabel(myPrivateVariablePlus.node1,myPrivateVariablePlus.node2);
+	formEdgeLabel(myPrivateVariablePlus);
 	myPrivateVariablePlus.deltaData.treenode=myPrivateVariablePlus.node;
 	myPrivateVariablePlus.deltaData.nodeA=myPrivateVariablePlus.node1;
 	myPrivateVariablePlus.deltaData.nodeB=myPrivateVariablePlus.node2;
@@ -487,17 +549,17 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 	{
 		////delete edge
 		myPrivateVariablePlus.myedge=myPrivateVariablePlus.graphdata->label2edge->find(myPrivateVariablePlus.edgelabel)->second;
-		myPrivateVariablePlus.graphdata->deleteEdge(myPrivateVariablePlus.myedge,myPrivateVariablePlus.edgelabel);
+		deleteEdge(myPrivateVariablePlus);
 	}
 	else{
 		//// add edge
-		myPrivateVariablePlus.graphdata->addEdge(myPrivateVariablePlus.node1,myPrivateVariablePlus.node2);
+		addEdge(myPrivateVariablePlus);
 	}
 
-	myPrivateVariablePlus.si=0;
+	myPrivateVariablePlus.sj=0;
 	myPrivateVariablePlus.deltaScore.fscore.fill(0);
 	//// Compute the gap between the two scores, but without changes of their original score attritubtion.
-	for(myPrivateVariablePlus.incE=IncEdgeIt(localtree.g,myPrivateVariablePlus.node);myPrivateVariablePlus.incE!=lemon::INVALID;++myPrivateVariablePlus.incE,++myPrivateVariablePlus.si)
+	for(myPrivateVariablePlus.incE=IncEdgeIt(localtree.g,myPrivateVariablePlus.node);myPrivateVariablePlus.incE!=lemon::INVALID;++myPrivateVariablePlus.incE,++myPrivateVariablePlus.sj)
 	{
 		myPrivateVariablePlus.rnode=localtree.g.runningNode(myPrivateVariablePlus.incE);
 		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.rnode)];
@@ -524,9 +586,11 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 		
 		myPrivateVariablePlus.deltaScore+=myPrivateVariablePlus.score;
 		myPrivateVariablePlus.deltaScore-=(*myPrivateVariablePlus.scoremap)[myPrivateVariablePlus.incE];
-		myPrivateVariablePlus.deltaData.updatedScores[myPrivateVariablePlus.si]=myPrivateVariablePlus.score;
+		myPrivateVariablePlus.deltaData.updatedScores[myPrivateVariablePlus.sj]=myPrivateVariablePlus.score;
 	}
-	myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.deltaScore.sumup();
+	//myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.deltaScore.sumup();
+	sumupScore(myPrivateVariablePlus,myPrivateVariablePlus.deltaScore);
+	myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.sumDist;
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	std::cout << myPrivateVariablePlus.deltaData.delta << std::endl;
 	return true;
@@ -591,6 +655,26 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
+void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus)
+{
+	myPrivateVariablePlus.element.clear();
+	myPrivateVariablePlus.element.append("_resultfolder");
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus)
+{
+	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.si)
+	{
+		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<_numSpecies;++myPrivateVariablePlus.sj)
+		{
+			myPrivateVariablePlus.fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
+		}
+		myPrivateVariablePlus.fout <<"\n";
+	}
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 {
@@ -627,7 +711,6 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		{
 			std::cout << i+1 <<"/"<<csize << std::endl;
 			myPrivateVariablePlus.scoremap=new ScoreEdgeMap(localtree.g);
-			myPrivateVariablePlus.matchingmap=new MatchingNodeMap();
 			myPrivateVariablePlus.matchingedgemap=new MatchingEdgeMap(localtree.g);
 		}
 		myPrivateVariablePlus.subnet=mySubNetList[i];
@@ -635,7 +718,8 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
-		clearStructure(myPrivateVariablePlus);
+		//outsubgraphs(myPrivateVariablePlus);
+		clearStructure(myPrivateVariablePlus,localtree);
 	}
 	std::cout << csize << std::endl;
 }
@@ -651,7 +735,7 @@ void
 	myPrivateVariable.generator=std::default_random_engine(myPrivateVariable.seed);
 	while(myPrivateVariable.sk++<=myPrivateVariable.simulatedannealing._Kmax)
 	{
-		myPrivateVariable.st = myPrivateVariable.st-myPrivateVariable.step;// assert(t>myPrivateVariable.simulatedannealing._tmin);
+		myPrivateVariable.st = myPrivateVariable.st-myPrivateVariable.step;//
 		myPrivateVariable.beta = -1.0/(myPrivateVariable.simulatedannealing._k*myPrivateVariable.st);
 		for(myPrivateVariable.si=0;myPrivateVariable.si<myPrivateVariable.simulatedannealing._Nmax;++myPrivateVariable.si)
 		{
@@ -665,7 +749,6 @@ void
 				myPrivateVariable.sj=0;
 				for(myPrivateVariable.incE=IncEdgeIt(localtree.g,myPrivateVariable.deltaData.treenode);myPrivateVariable.incE!=lemon::INVALID;++myPrivateVariable.incE,++myPrivateVariable.sj)
 				{
-					//localtree.scoremap[myPrivateVariable.incE]=myPrivateVariable.deltaData.updatedScores[myPrivateVariable.sj];
 					(*myPrivateVariable.scoremap)[myPrivateVariable.incE]=myPrivateVariable.deltaData.updatedScores[myPrivateVariable.sj];
 				}
 			}
@@ -677,11 +760,14 @@ void
 				if(myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)!=myPrivateVariable.graphdata->label2edge->end())
 				{
 					 myPrivateVariable.myedge=myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)->second;
-					myPrivateVariable.graphdata->deleteEdge(myPrivateVariable.myedge,myPrivateVariable.deltaData.edgelabel);
+					 myPrivateVariable.edgelabel=myPrivateVariable.deltaData.edgelabel;
+					 deleteEdge(myPrivateVariable);
 				}
 				else
 				{
-					myPrivateVariable.graphdata->addEdge(myPrivateVariable.deltaData.nodeA,myPrivateVariable.deltaData.nodeB);
+					myPrivateVariable.node1=myPrivateVariable.deltaData.nodeA;
+					myPrivateVariable.node2=myPrivateVariable.deltaData.nodeB;
+					addEdge(myPrivateVariable);
 				}
 			}
 		}
@@ -697,8 +783,7 @@ Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,const My
 	{
 		myPrivateVariable.distEvolution+=(*myPrivateVariable.scoremap)[myPrivateVariable.ie];
 	}
-	sumupScore(myPrivateVariable);
-	myPrivateVariable.distEvolution.sumup();
+	sumupScore(myPrivateVariable,myPrivateVariable.distEvolution);
 	myPrivateVariable.overallScore=myPrivateVariable.phylogeny._dsize/myPrivateVariable.sumDist;
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 		std::cout << localtree.overallScore << std::endl;
@@ -706,12 +791,12 @@ Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,const My
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG,OP>::sumupScore(PrivateVariablePlus& myPrivateVariable)
+Search<NP,SN,LG,OP>::sumupScore(PrivateVariablePlus& myPrivateVariable,Score& myscore)
 {
 	myPrivateVariable.sumDist=0;
-	for(myPrivateVariable.si=0;myPrivateVariable.si<4;myPrivateVariable.si++)
+	for(myPrivateVariable.sj=0;myPrivateVariable.sj<4;myPrivateVariable.sj++)
 	{
-		myPrivateVariable.sumDist+=myPrivateVariable.score.fscore[myPrivateVariable.si];
+		myPrivateVariable.sumDist+=myscore.fscore[myPrivateVariable.sj];
 	}
 }
 

@@ -30,7 +30,8 @@ typedef struct _Option
   std::string resultfolder;
   std::string profile;
   std::string treefile;
-  float beta;
+  double beta;
+	double score_threshold;
   int numspecies;
   int seedsize;
   int seedtries;
@@ -48,9 +49,10 @@ typedef struct _Option
     seedtries=10;
 		minext=5;
 		maxext=10;
-    numsamples=4000;
-    numconnected=2;
+    numsamples=8000;
+    numconnected=3;
     numthreads=1;
+		score_threshold=0.0;
 		parallel=false;
   }
 }Option;
@@ -74,7 +76,8 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
 	.refOption("numsamples","Number of sampled seeds. Default is 2000.", myoption.numsamples)
-	.refOption("numthreads","Number of threads. Default is 1.", myoption.numsamples)
+	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
+	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 1.", myoption.score_threshold)
 	.refOption("parallel","Run LocalAli in parallel. Default is false.", myoption.parallel);
 	return true;
 }
