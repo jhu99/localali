@@ -185,6 +185,7 @@ public:
 	bool computeScore(PrivateVariablePlus&,const MyTree&);
 	void computeDist(PrivateVariablePlus&,const MyTree&);
 	bool clearScore(PrivateVariablePlus&);
+	bool clearStructure(PrivateVariablePlus&);
 	void simulatedAnnealingMethod(PrivateVariablePlus&,const MyTree&);
 	void sumupScore(PrivateVariablePlus&);
 	GraphData* constructInternalNodes(Node,PrivateVariablePlus&,LayerGraph&,const MyTree&);
@@ -215,6 +216,19 @@ template<typename NP, typename SN, typename LG, typename OP>
 bool Search<NP,SN,LG,OP>::clearScore(PrivateVariablePlus& myPrivateVariablePlus)
 {
 	myPrivateVariablePlus.score.fscore.fill(0.0);
+	return true;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+bool Search<NP,SN,LG,OP>::clearStructure(PrivateVariablePlus& myPrivateVariablePlus)
+{
+	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.phylogeny.node2graph.size();myPrivateVariablePlus.si++)
+	{
+		delete myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.si];
+	}
+	delete myPrivateVariablePlus.scoremap;
+	delete myPrivateVariablePlus.matchingmap;
+	delete myPrivateVariablePlus.matchingedgemap;
 	return true;
 }
 
@@ -621,9 +635,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
-		delete myPrivateVariablePlus.scoremap;
-		delete myPrivateVariablePlus.matchingmap;
-		delete myPrivateVariablePlus.matchingedgemap;
+		clearStructure(myPrivateVariablePlus);
 	}
 	std::cout << csize << std::endl;
 }
