@@ -59,19 +59,18 @@ public:
     int _seedSize;
     int _seedTries;
     int _numSamples;
-		int _minExt;
-		int _maxExt;
+	int _minExt;
+	int _maxExt;
     int _numExtension;
     int _numConnected;
     int _numthreads;
-		std::string _resultfolder;
-		std::string _treefile;
-		std::vector<std::string> _speciesfiles;
+    double _score_threshold;
+	std::string _resultfolder;
+	std::string _treefile;
+	std::vector<std::string> _speciesfiles;
     
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
-		
-    
     typename std::vector<SubNet*> refinedSeeds;
 
     typedef struct _PrivateVariable
@@ -154,7 +153,7 @@ public:
 			float branchweight;
 			DeltaStructure deltaData;
 			MyPhylogeny phylogeny;
-			std::ofstream fout;
+			std::ofstream *fout;
 			_PrivateVariablePlus():
 				distribution(0.0,1.0),simulatedannealing(),deltaData()
 			{
@@ -217,6 +216,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_numthreads=myoption.numthreads;
 	_treefile=myoption.treefile;
 	_speciesfiles=myoption.speciesfiles;
+	_score_threshold=myoption.score_threshold;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -658,7 +658,13 @@ template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus)
 {
 	myPrivateVariablePlus.element.clear();
-	myPrivateVariablePlus.element.append("_resultfolder");
+	myPrivateVariablePlus.element.append(_resultfolder);
+	myPrivateVariablePlus.element.append("alignments/ucomplex_");
+	myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.si));
+	myPrivateVariablePlus.element.append(".txt");
+	myPrivateVariablePlus.fout=new std::ofstream();
+	myPrivateVariablePlus.fout->open(myPrivateVariablePlus.element.c_str());
+	outsubgraphs(layergraph,myPrivateVariablePlus);
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -668,9 +674,9 @@ void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlu
 	{
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<_numSpecies;++myPrivateVariablePlus.sj)
 		{
-			myPrivateVariablePlus.fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
+			(*myPrivateVariablePlus.fout) << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
 		}
-		myPrivateVariablePlus.fout <<"\n";
+		(*myPrivateVariablePlus.fout) <<"\n";
 	}
 }
 
@@ -718,7 +724,11 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
-		//outsubgraphs(myPrivateVariablePlus);
+		myPrivateVariablePlus.si=i;
+		if(myPrivateVariablePlus.overallScore > _score_threshold)
+		{
+			output(layergraph,myPrivateVariablePlus);
+		}
 		clearStructure(myPrivateVariablePlus,localtree);
 	}
 	std::cout << csize << std::endl;
