@@ -167,8 +167,6 @@ subgraphs()
 template<typename NP, typename LG>
 SubNet<NP,LG>::~SubNet()
 {
-	for(unsigned i=0;i<subgraphs.size();i++)
-		delete subgraphs[i];
 }
 
 template<typename NP, typename LG>
