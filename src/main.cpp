@@ -19,6 +19,8 @@ Description: Major body
 #include "algorithm/subnet.h"
 #include "algorithm/search.h"
 #include "omp.h"
+#include "input/format.h"
+#include "analyse/analyse.h"
 
 using namespace std;
 
@@ -32,6 +34,7 @@ typedef struct _Option
   std::string treefile;
   double beta;
 	double score_threshold;
+	int task;
   int numspecies;
   int seedsize;
   int seedtries;
@@ -44,6 +47,7 @@ typedef struct _Option
   _Option()
   {
     profile="./profile.txt";
+		task=0;
     numspecies=3;
     seedsize=5;
     seedtries=10;
@@ -64,10 +68,22 @@ typedef NetworkPool<Graph,BpGraph> InputGraph;
 typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
 typedef SubNet<InputGraph,LayerGraph> MySubNet;
 typedef Search<InputGraph, MySubNet, LayerGraph, Option> MySearch;
+typedef Format<InputGraph, Option> MyFormat;
 
 bool setParser(ArgParser& parser, Option& myoption)
 {
 	parser
+	.boolOption("version","Show the version number.")
+  .boolOption("alignment","Execute the alignment algorithm.")
+  .boolOption("analyse","Make analysis on alignmenr result.")
+  .boolOption("format","Process input or output file into proper format.")
+	.optionGroup("method","version")
+  .optionGroup("method","alignment")
+  .optionGroup("method","analyse")
+  .optionGroup("method","format")
+  .onlyOneGroup("method")
+  .mandatoryGroup("method")
+	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
@@ -108,16 +124,60 @@ int main(int argc, char** argv)
   Timer t(false);
 
   g_verbosity=VERBOSE_ESSENTIAL;
+	t.start();
 
-  t.start();
+	if(myparser.given("alignment"))
+	{
   // Read interface for PPI networks;
-  networks.initNetworkPool(myoption.networkfiles);
-  layergraph.read(myoption.layerfile,networks);
-
-  localAlignment.run(layergraph,networks);
-  t.stop();
-  if(g_verbosity>=VERBOSE_ESSENTIAL)
-  std::cerr <<"Elapsed time: "<< t <<std::endl;
-
+		networks.initNetworkPool(myoption.networkfiles);
+		layergraph.read(myoption.layerfile,networks);
+		localAlignment.run(layergraph,networks);
+	}
+	else if(myparser.given("format"))
+	{
+		MyFormat myformat(myoption);
+		if(myoption.task==0)
+			// Convert Celeg20130707.txt.data etc.. -> Celeg20130707-int.txt (interactorA	interactorB 0.9)
+		{
+			myformat.extractInteractions();
+		}
+		else if(myoption.task==1)
+			// Convert homology-list-20130826.b6.data -> homology-list-20130826.evals and homology-list-20130826.bscore
+		{
+			myformat.extractHomology();
+		}
+		else if(myoption.task==2)
+			// Convert homology-list-20130826.evals -> Celeg20130707-Celeg20130707.evals Celeg20130707-Dmela20130707.evals...
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			myformat.extractDatasetHomology(networks);
+		}
+		else if(myoption.task==3)
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			myformat.extractDipAc(networks);
+		}
+		else
+		{
+		}
+	}
+	else if(myparser.given("analyse"))
+	{
+		Analyse myanalyse;
+		if(myoption.task==0)
+		{
+			myanalyse.readIdMap();
+			myanalyse.translate(myoption.resultfolder,myoption.numspecies);
+		}
+		else if(myoption.task==1)
+		{
+		}
+		else
+		{
+		}
+	}
+	t.stop();
+	if(g_verbosity>=VERBOSE_ESSENTIAL)
+			std::cerr <<"Elapsed time: "<< t <<std::endl;
   return 1;
 }

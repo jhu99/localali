@@ -194,8 +194,8 @@ public:
 	void deleteEdge(PrivateVariablePlus&);
 	void addEdge(PrivateVariablePlus&);
 	void formEdgeLabel(PrivateVariablePlus&);
-	void outsubgraphs(LayerGraph&,PrivateVariablePlus&);
-	void output(LayerGraph&,PrivateVariablePlus&);
+	void outsubgraphs(LayerGraph&,PrivateVariablePlus&,std::ofstream& fout);
+	void output(LayerGraph&,PrivateVariablePlus&,std::ofstream& fout);
 };
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -655,28 +655,29 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
-void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus)
+void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
 	myPrivateVariablePlus.element.clear();
 	myPrivateVariablePlus.element.append(_resultfolder);
 	myPrivateVariablePlus.element.append("alignments/ucomplex_");
 	myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.si));
 	myPrivateVariablePlus.element.append(".txt");
-	myPrivateVariablePlus.fout=new std::ofstream();
-	myPrivateVariablePlus.fout->open(myPrivateVariablePlus.element.c_str());
-	outsubgraphs(layergraph,myPrivateVariablePlus);
+	fout.open(myPrivateVariablePlus.element.c_str());
+	outsubgraphs(layergraph,myPrivateVariablePlus,fout);
+	fout.close();
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
-void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus)
+void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
+	fout <<"#score:" << myPrivateVariablePlus.overallScore << "\n";
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.si)
 	{
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<_numSpecies;++myPrivateVariablePlus.sj)
 		{
-			(*myPrivateVariablePlus.fout) << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
+			fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
 		}
-		(*myPrivateVariablePlus.fout) <<"\n";
+		fout <<"\n";
 	}
 }
 
@@ -708,9 +709,10 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	}
 
 	PrivateVariablePlus myPrivateVariablePlus;
+	std::ofstream fout;
 	csize=mySubNetList.size();
 	localtree.readTree(_treefile);
-#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree) firstprivate(myPrivateVariablePlus)
+#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree,fout) firstprivate(myPrivateVariablePlus)
 	for(int i=0;i<csize;i++)
 	{
 		#pragma omp critical
@@ -727,7 +729,10 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		myPrivateVariablePlus.si=i;
 		if(myPrivateVariablePlus.overallScore > _score_threshold)
 		{
-			output(layergraph,myPrivateVariablePlus);
+			#pragma omp critical
+			{
+			output(layergraph,myPrivateVariablePlus,fout);
+			}
 		}
 		clearStructure(myPrivateVariablePlus,localtree);
 	}
