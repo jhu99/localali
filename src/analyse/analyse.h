@@ -14,6 +14,7 @@ public:
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
 	void translate(std::string,int);
 	void readIdMap();
+	void removeRedundant(std::string,int);
 };
 
 Analyse::Analyse(){}
@@ -67,6 +68,34 @@ void Analyse::translate(std::string folder, int speciesnum)
 			Subnetwork sub;
 			sub.readsubnetwork(filename1);
 			sub.writegenelist(filename2,protein_dip_uniprot_map);
+		}
+	}
+}
+
+void Analyse::removeRedundant(std::string folder, int speciesnum)
+{
+	std::vector<std::string> filelist;
+	std::string filename1,filename2;
+	filename1.append(folder);
+	filename1.append("filenames.txt");
+	std::ifstream input1(filename1.c_str());
+	std::ifstream input2(filename2.c_str());
+	std::string item;
+	while (std::getline(input1,item))
+	{
+		std::string filename;
+		unsigned pos = item.find(".");
+		filename=item.substr(0,pos);
+		filelist.push_back(filename);
+	}
+	for(int k=0;k<speciesnum;k++)
+	{
+		for(unsigned i=0;i<filelist.size();i++)
+		{
+			filename1.clear();filename1.append(folder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
+			filename1.append(filelist[i]);filename1.append(".txt");
+			filename2.clear();filename2.append(folder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
+			filename2.append(filelist[i]);filename2.append(".txt");
 		}
 	}
 }
