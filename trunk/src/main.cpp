@@ -165,11 +165,14 @@ int main(int argc, char** argv)
 	{
 		Analyse myanalyse;
 		if(myoption.task==0)
+		// translate DIP subnetworks to Uniprot subnetworks
 		{
 			myanalyse.readIdMap();
 			myanalyse.translate(myoption.resultfolder,myoption.numspecies);
+			// use gotermfinder-local.sh to calculate p-value of each subnetwork;
 		}
 		else if(myoption.task==1)
+		// remove redundant subnetworks.
 		{
 		}
 		else
@@ -178,6 +181,6 @@ int main(int argc, char** argv)
 	}
 	t.stop();
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
-			std::cerr <<"Elapsed time: "<< t <<std::endl;
+		std::cerr <<"Elapsed time: "<< t <<std::endl;
   return 1;
 }
