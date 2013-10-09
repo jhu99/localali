@@ -13,19 +13,21 @@ public:
 	Subnetwork();
 	~Subnetwork(){};
 	float score;
+	std::string uniprotname;
 	std::vector<std::string> proteinlist;
-	void readsubnetwork(std::string);
-	void writegenelist(std::string,std::unordered_map<std::string,std::string>&);
+	void readsubnetwork(std::string,std::string);
+	void writegenelist(std::unordered_map<std::string,std::string>&);
 };
 
 Subnetwork::Subnetwork():score(0.0),proteinlist()
 {
 }
 
-void Subnetwork::readsubnetwork(std::string filename)
+void Subnetwork::readsubnetwork(std::string filename,std::string translatename)
 {
 	std::ifstream input(filename.c_str());
 	std::string line;
+	uniprotname=translatename;
 	bool firstline=true;
 	while(std::getline(input,line))
 	{
@@ -44,9 +46,10 @@ void Subnetwork::readsubnetwork(std::string filename)
 	}
 }
 
-void Subnetwork::writegenelist(std::string filename,std::unordered_map<std::string,std::string>& idmap)
+void Subnetwork::writegenelist(std::unordered_map<std::string,std::string>& idmap)
 {
-	std::ofstream output(filename.c_str());
+	std::ofstream output(uniprotname.c_str());
+	output << "# Score: " << score << std::endl;
 	for(unsigned i=0;i<proteinlist.size();i++)
 	{
 		std::string protein=proteinlist[i];
