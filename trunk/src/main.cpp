@@ -165,14 +165,14 @@ int main(int argc, char** argv)
 	{
 		Analyse myanalyse;
 		if(myoption.task==0)
-		// translate DIP subnetworks to Uniprot subnetworks
+		// translate DIP subnetworks to Uniprot subnetworks and remove redundant subnetworks;
 		{
 			myanalyse.readIdMap();
 			myanalyse.translate(myoption.resultfolder,myoption.numspecies);
 			// use gotermfinder-local.sh to calculate p-value of each subnetwork;
 		}
 		else if(myoption.task==1)
-		// remove redundant subnetworks.
+		// 
 		{
 		}
 		else
