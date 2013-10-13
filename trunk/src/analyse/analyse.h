@@ -4,6 +4,8 @@ Data: 02.10.2013*/
 #ifndef ANALYSE_H_
 #define ANALYSE_H_
 #include "analyse/subnetwork.h"
+#include <fstream>
+#include <iostream>
 #include <stdio.h>
 #include <vector>
 #include <algorithm>
@@ -14,17 +16,20 @@ public:
 	Analyse();
 	~Analyse(){};
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
+	std::vector<Subnetwork*> sublist;
 	void translate(std::string,int);
 	void readIdMap();
 	void removeRedundant(std::string,int);
 	bool checkRedundante(Subnetwork*, Subnetwork*);
+	void assessQuality(std::string,int);
 	struct Compare_Sub
 	{
 		bool operator() (Subnetwork* sub1, Subnetwork* sub2) {return sub1->score > sub2->score;}
 	} compare_obj;
 };
 
-Analyse::Analyse(){}
+Analyse::Analyse()
+{}
 
 void Analyse::readIdMap()
 {
@@ -65,7 +70,6 @@ void Analyse::translate(std::string folder, int speciesnum)
 	}
 	for(int k=0;k<speciesnum;k++)
 	{
-		std::vector<Subnetwork*> sublist;
 		for(unsigned i=0;i<filelist.size();i++)
 		{
 			filename1.clear();filename1.append(folder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
@@ -77,22 +81,22 @@ void Analyse::translate(std::string folder, int speciesnum)
 			sublist.push_back(sub);
 			//sub->writegenelist(filename2,protein_dip_uniprot_map);
 		}
-		// sort subnetworks in the list according to their score.
-		std::stable_sort(sublist.begin(),sublist.end(),compare_obj);
-		//remove redundant subnetworks
-		for(std::vector<Subnetwork*>::iterator it1=sublist.begin();it1!=sublist.end();++it1)
+	}
+	// sort subnetworks in the list according to their score.
+	std::stable_sort(sublist.begin(),sublist.end(),compare_obj);
+	//remove redundant subnetworks
+	for(std::vector<Subnetwork*>::iterator it1=sublist.begin();it1!=sublist.end();++it1)
+	{
+		std::vector<Subnetwork*>::iterator it2=it1+1;
+		(*it1)->writegenelist(protein_dip_uniprot_map);
+		while(it2!=sublist.end())
 		{
-			std::vector<Subnetwork*>::iterator it2=it1+1;
-			(*it1)->writegenelist(protein_dip_uniprot_map);
-			while(it2!=sublist.end())
+			if(checkRedundante(*it1,*it2))
 			{
-				if(checkRedundante(*it1,*it2))
-				{
-					it2=sublist.erase(it2);
-				}else
-				{
-					++it2;
-				}
+				it2=sublist.erase(it2);
+			}else
+			{
+				++it2;
 			}
 		}
 	}
@@ -147,6 +151,78 @@ void Analyse::removeRedundant(std::string folder, int speciesnum)
 			filename2.clear();filename2.append(folder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
 			filename2.append(filelist[i]);filename2.append(".txt");
 		}
+	}
+}
+
+void Analyse::assessQuality(std::string folder,int speciesnum)
+{
+	std::string filename;
+	int numDiscovered,numCoherent;
+	float rate;
+	std::vector<std::string> filelist;
+	std::ifstream input1;
+	std::string item,line,keystr,valstr;
+	bool switcher1,switcher2,isCoherent;
+	for(int k=0;k<speciesnum;k++)
+	{
+		std::unordered_map<std::string,bool> go_category;
+		filename.clear();filename.append(folder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
+		input1.open(filename.c_str());
+		filelist.clear();
+		while (std::getline(input1,item))
+		{
+			filelist.push_back(item);
+		}
+		input1.close();
+		numCoherent=0;
+		numDiscovered=filelist.size();
+		for(unsigned i=0;i<numDiscovered;i++)
+		{
+			switcher1=false;
+			switcher2=false;
+			isCoherent=true;
+			filename.clear();filename.append(filelist[i]);
+			input1.open(filename.c_str());
+			while(std::getline(input1,line))
+			{
+				if(!switcher1 && !switcher2 )
+				{
+					if(line.compare("Finding terms for P")==0)
+					{
+						switcher2=true;
+						continue;
+					}
+					else
+					{
+						continue;
+					}
+				}
+				else if(!switcher1 && switcher2)
+				{
+					if(line.compare("Finding terms for C")==0)break;
+					else if(line.compare("No terms were found for this aspect with a corrected P-value <= 0.05.")==0)
+					{
+						isCoherent=false;
+						break;
+					}
+					else
+					{
+						std::stringstream linestream(line);
+						linestream >> keystr >> valstr;
+						if(keystr.compare("GOID")==0 && go_category.find(valstr)==go_category.end())
+						{
+							go_category[valstr]=true;
+						}
+					}
+				}
+			}
+			input1.close();
+			if(isCoherent)numCoherent++;
+		}
+		rate=numCoherent/static_cast<float>(numDiscovered);
+		std::cout <<"Species " << k <<":"<< std::endl;
+		std::cout << "The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
+		std::cout << "The number of distinct GO categories they cover: " << go_category.size() << std::endl;
 	}
 }
 #endif
