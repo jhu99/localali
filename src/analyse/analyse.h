@@ -176,7 +176,7 @@ void Analyse::assessQuality(std::string folder,int speciesnum)
 		input1.close();
 		numCoherent=0;
 		numDiscovered=filelist.size();
-		for(unsigned i=0;i<numDiscovered;i++)
+		for(int i=0;i<numDiscovered;i++)
 		{
 			switcher1=false;
 			switcher2=false;
