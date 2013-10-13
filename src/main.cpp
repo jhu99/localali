@@ -172,8 +172,9 @@ int main(int argc, char** argv)
 			// use gotermfinder-local.sh to calculate p-value of each subnetwork;
 		}
 		else if(myoption.task==1)
-		// 
+		// Assess the quality of subnetworks;
 		{
+			myanalyse.assessQuality(myoption.resultfolder,myoption.numspecies);
 		}
 		else
 		{

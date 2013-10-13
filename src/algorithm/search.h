@@ -142,6 +142,7 @@ public:
 			std::deque<Node> processnode;
 			std::deque<IncEdgeIt> processinc;
 			std::vector<std::string>::iterator it;
+			std::unordered_map<std::string,bool> proteinmap;
 			ItInvOrigLabelNodeMap cit;
 			SpineList::iterator sit;
 			MatchingNodeMapIt mit,mit1,mit2;
@@ -665,17 +666,39 @@ void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myP
 	fout.open(myPrivateVariablePlus.element.c_str());
 	outsubgraphs(layergraph,myPrivateVariablePlus,fout);
 	fout.close();
+	for(myPrivateVariablePlus.st=0;myPrivateVariablePlus.st<_numSpecies;++myPrivateVariablePlus.st)
+	{
+		myPrivateVariablePlus.element.clear();
+		myPrivateVariablePlus.element.append(_resultfolder);
+		myPrivateVariablePlus.element.append("species_");
+		myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.st));
+		myPrivateVariablePlus.element.append("/complex_");
+		myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.si));
+		myPrivateVariablePlus.element.append(".txt");
+		fout.open(myPrivateVariablePlus.element.c_str());
+		myPrivateVariablePlus.proteinmap.clear();
+		for(myPrivateVariablePlus.sk=0;myPrivateVariablePlus.sk<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.sk)
+		{
+			myPrivateVariablePlus.protein=layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.sk].data[myPrivateVariablePlus.st]];
+			if(myPrivateVariablePlus.proteinmap.find(myPrivateVariablePlus.protein)!=myPrivateVariablePlus.proteinmap.end())
+				continue;
+			else
+				myPrivateVariablePlus.proteinmap[myPrivateVariablePlus.protein]=true;
+			fout << myPrivateVariablePlus.protein <<"\n";
+		}
+		fout.close();
+	}
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
 	fout <<"#score:" << myPrivateVariablePlus.overallScore << "\n";
-	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.si)
+	for(myPrivateVariablePlus.st=0;myPrivateVariablePlus.st<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.st)
 	{
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<_numSpecies;++myPrivateVariablePlus.sj)
 		{
-			fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.si].data[myPrivateVariablePlus.sj]]<<"\t";
+			fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.st].data[myPrivateVariablePlus.sj]]<<"\t";
 		}
 		fout <<"\n";
 	}
