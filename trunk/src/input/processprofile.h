@@ -72,8 +72,6 @@ ProcessProfile<Option>::getOption(Option& myoption)
 	std::string mykey="folder";
 	std::string mystr,myfolder;
 	getKey(mykey,myfolder);
-	mykey="resultfolder";
-	getKey(mykey,myoption.resultfolder);
 	mykey="species";
 	getArray(mykey,myoption.speciesfiles);
 	for(unsigned i=0;i<myoption.speciesfiles.size();i++)

@@ -22,6 +22,7 @@ public:
 	Score& operator+=(Score&);
 	Score& operator-=(Score&);
 	float sumup();
+	void clear();
 };
 
 Score::Score()
@@ -55,5 +56,10 @@ float Score::sumup()
 		sumscore+=fscore[i];
 	}
 	return sumscore;
+}
+
+void Score::clear()
+{
+	fscore.fill(0.0);
 }
 #endif

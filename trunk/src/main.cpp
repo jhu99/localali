@@ -32,6 +32,7 @@ typedef struct _Option
   std::string resultfolder;
   std::string profile;
   std::string treefile;
+	std::string alignmentfile;
   double beta;
 	double score_threshold;
 	int task;
@@ -49,14 +50,14 @@ typedef struct _Option
     profile="./profile.txt";
 		task=0;
     numspecies=3;
-    seedsize=5;
-    seedtries=10;
-		minext=5;
-		maxext=10;
-    numsamples=8000;
+    seedsize=3;
+    seedtries=1;
+		minext=6;
+		maxext=12;
+    numsamples=1000;
     numconnected=3;
     numthreads=1;
-		score_threshold=0.0;
+		score_threshold=0.4;
 		parallel=false;
   }
 }Option;
@@ -85,15 +86,16 @@ bool setParser(ArgParser& parser, Option& myoption)
   .mandatoryGroup("method")
 	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
+	.refOption("resultfolder","Configuration of various input parameters. Default is \"./result/dip/3-way/localali/", myoption.resultfolder)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
-	.refOption("seedtries","Number of tries for each refined seeds. Default is 100.", myoption.seedtries)
-	.refOption("seedsize","Size of the seeds. Default is 5.", myoption.seedsize)
+	.refOption("seedtries","Number of tries for each refined seeds. Default is 3.", myoption.seedtries)
+	.refOption("seedsize","Size of the seeds. Default is 3.", myoption.seedsize)
 	.refOption("minext","Minimal number of the extension . Default is 1.", myoption.minext)
 	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
-	.refOption("numsamples","Number of sampled seeds. Default is 2000.", myoption.numsamples)
+	.refOption("numsamples","Number of sampled seeds. Default is 40000.", myoption.numsamples)
 	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
-	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 1.", myoption.score_threshold)
+	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.4.", myoption.score_threshold)
 	.refOption("parallel","Run LocalAli in parallel. Default is false.", myoption.parallel);
 	return true;
 }
@@ -105,8 +107,8 @@ bool runParser(ArgParser& myparser, Option& myoption)
   myprofile.getOption(myoption);
   if(myoption.parallel)
   {
-	  myoption.numthreads=omp_get_max_threads();
-	  std::cout << "This program will be run with "<< myoption.numthreads <<" multiple threads." << std::endl;
+	  //myoption.numthreads=4;
+	  std::cout << "This program will run with "<< myoption.numthreads <<" multiple threads." << std::endl;
   }
   return true;
 }
@@ -123,7 +125,7 @@ int main(int argc, char** argv)
   MySearch localAlignment(myoption);
   Timer t(false);
 
-  g_verbosity=VERBOSE_ESSENTIAL;
+  g_verbosity=VERBOSE_ESSENTIAL;//VERBOSE_ESSENTIAL;
 	t.start();
 
 	if(myparser.given("alignment"))
@@ -157,7 +159,17 @@ int main(int argc, char** argv)
 			networks.initNetworkPool(myoption.networkfiles);
 			myformat.extractDipAc(networks);
 		}
-		else
+		else if(myoption.task==4)
+			// Generate a subtree for a set of species.
+		{
+			MyTree gtree;
+			gtree.generateSubTree(myoption.treefile,myoption.speciesfiles);
+		}
+		else if(myoption.task==5)
+			// write networkblast-m complexes with alignment score
+		{
+			myformat.writeSubnetworks(myoption);
+		}else
 		{
 		}
 	}
@@ -176,12 +188,17 @@ int main(int argc, char** argv)
 		{
 			myanalyse.assessQuality(myoption.resultfolder,myoption.numspecies);
 		}
-		else
+		else if(myoption.task==2)
+		// translate DIP subnetworks to Uniprot subnetworks and remove redundant alignments;
+		{
+			myanalyse.readIdMap();
+			myanalyse.translate_alignment(myoption.resultfolder,myoption.numspecies);
+		}else
 		{
 		}
 	}
 	t.stop();
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
-		std::cerr <<"Elapsed time: "<< t <<std::endl;
+		std::cout <<"Elapsed time: "<< t <<std::endl;
   return 1;
 }

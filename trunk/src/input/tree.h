@@ -23,6 +23,7 @@ Description: Searching high-scoring subnetworks.
 #include "string.h"
 #include "algorithm/score.h"
 #include "algorithm/function.h"
+#include <lemon/dfs.h>
 
 template<typename GR, typename OP>
 class Tree
@@ -46,8 +47,8 @@ public:
 	/// Nodes matching map for each branch.
 	typedef typename Graph::template EdgeMap<MatchingNodeMap*> MatchingEdgeMap;
 	typedef std::unordered_map<std::string, EdgeIt> LabelEdgeMap;
+	typedef lemon::Bfs<Graph> BfsType;
 	
-
 	/// Hold the topology of this tree.
 	Graph g;
 	/// Root of the evolutionary tree.
@@ -76,6 +77,8 @@ public:
 	bool constructTree(std::string);
 	void compressNodes(std::stack<std::string>&);
 	bool computeDistEvolution(int);
+	void extractSubtree(std::string sentence, std::vector<std::string>&);
+	bool generateSubTree(std::string,std::vector<std::string>&);
 };
 
 template<typename GR, typename OP>
@@ -256,5 +259,51 @@ Tree<GR,OP>::computeDistEvolution(int dsize)
 	float sumDist=distEvolution.sumup();
 	overallScore=dsize/sumDist;
 	return true;
+}
+
+template<typename GR, typename OP>
+bool
+Tree<GR,OP>::generateSubTree(std::string filename,std::vector<std::string>& speciesfiles)
+{
+	readTree(filename);
+	BfsType mybfs(g);
+	typename BfsType::PredMap pm(g);
+	typename BfsType::ReachedMap rm(g);
+	typename BfsType::DistMap dm(g);
+	mybfs.predMap(pm).reachedMap(rm).distMap(dm);//.run(root);
+	Node interestnode;
+	mybfs.run(root);
+	for(unsigned i=0;i<speciesfiles.size();i++)
+	{
+		if(label2node.find(speciesfiles[i])!=label2node.end())
+		{
+			std::cout <<speciesfiles[i]<<": ";
+			interestnode=label2node[speciesfiles[i]];
+			if(!mybfs.reached(interestnode))continue;
+			Node tnode=interestnode;
+			typename Graph::Arc arc;
+			//typename BfsType::Path ph=mybfs.path(interestnode);
+			std::cout << g.id(tnode) << " -> ";
+			while ((arc=pm[tnode]) != lemon::INVALID)
+			{
+				std::cout << " (" <<branchmap[arc] <<") ";
+				tnode =mybfs.predNode(tnode);
+				std::cout << g.id(tnode) << " -> ";
+			}
+			std::cout << "end.\n";
+		}
+		else
+		{
+			std::cerr << "Species " << speciesfiles[i] <<" can't be found!";
+			return false;
+		}
+	}
+	return true;
+}
+
+template<typename GR, typename OP>
+void
+Tree<GR,OP>::extractSubtree(std::string sentence, std::vector<std::string>& speciesfiles)
+{
 }
 #endif
