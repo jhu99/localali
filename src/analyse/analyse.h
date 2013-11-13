@@ -4,6 +4,7 @@ Data: 02.10.2013*/
 #ifndef ANALYSE_H_
 #define ANALYSE_H_
 #include "analyse/subnetwork.h"
+#include "analyse/alignment.h"
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
@@ -17,15 +18,22 @@ public:
 	~Analyse(){};
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
 	std::vector<Subnetwork*> sublist;
-	void translate(std::string,int);
+	std::vector<Alignment*> alignmentlist;
+	void translate(std::string,int);// subnetworks and remove redundant alignments.
+	void translate_alignment(std::string, int);// translate alignment and remove redundant alignments.
 	void readIdMap();
 	void removeRedundant(std::string,int);
 	bool checkRedundante(Subnetwork*, Subnetwork*);
+	bool checkRedundanteAli(Alignment*,Alignment*);
 	void assessQuality(std::string,int);
 	struct Compare_Sub
 	{
 		bool operator() (Subnetwork* sub1, Subnetwork* sub2) {return sub1->score > sub2->score;}
 	} compare_obj;
+	struct Compare_Alignment
+	{
+		bool operator() (Alignment* align1, Alignment* align2) {return align1->score > align2->score;}
+	} compare_ali;
 };
 
 Analyse::Analyse()
@@ -99,6 +107,69 @@ void Analyse::translate(std::string folder, int speciesnum)
 				++it2;
 			}
 		}
+	}
+}
+
+void Analyse::translate_alignment(std::string folder, int speciesnum)
+{
+	std::vector<std::string> filelist;
+	std::string filename1,filename2;
+	filename1.append(folder);
+	filename1.append("alignmentfiles.txt");
+	std::ifstream input(filename1.c_str());
+	std::string item;
+	while (std::getline(input,item))
+	{
+		filelist.push_back(item);
+	}
+	input.close();
+	for(unsigned i=0;i<filelist.size();i++)
+	{
+		filename2=filelist[i];
+		Alignment *myalignment=new Alignment();
+		myalignment->readAlignment(folder, filename2, speciesnum);
+		alignmentlist.push_back(myalignment);
+	}
+	std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
+	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
+	{
+		std::vector<Alignment*>::iterator it2=it1+1;
+		(*it1)->writeAlignmentFile(folder,speciesnum, protein_dip_uniprot_map);
+		// write subnetworks for it1;
+		while(it2!=alignmentlist.end())
+		{
+			if(checkRedundanteAli(*it1,*it2))
+			{
+				it2=alignmentlist.erase(it2);
+			}else
+			{
+				++it2;
+			}
+		}
+	}
+}
+
+bool Analyse::checkRedundanteAli(Alignment* alig1, Alignment* alig2)
+{
+	int protein_num,num1,num2,conserved_num;
+	std::string protein;
+	float portion;
+	num1=alig1->alignmap.size();num2=alig2->alignmap.size();
+	if(num1<num2) protein_num=num1;
+	else protein_num=num2;
+	conserved_num=0;
+	for(std::unordered_map<std::string,int>::iterator it=alig2->alignmap.begin();it!=alig2->alignmap.end();++it)
+	{
+		protein=it->first;
+		if(alig1->alignmap.find(protein)!=alig1->alignmap.end())
+			conserved_num++;
+	}
+	portion=conserved_num/static_cast<float>(protein_num);
+	if(portion>0.5)
+		return true;
+	else
+	{
+		return false;
 	}
 }
 
@@ -191,6 +262,11 @@ void Analyse::assessQuality(std::string folder,int speciesnum)
 					{
 						switcher2=true;
 						continue;
+					}
+					else if(line.compare("None of the gene names were recognized")==0)
+					{
+						isCoherent=false;
+						break;
 					}
 					else
 					{

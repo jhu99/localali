@@ -1,9 +1,7 @@
 folder ./dataset/dip/3-way/
-resultfolder ./result/dip/3-way/localali/
 species Celeg20130707
 species Dmela20130707
 #species	Ecoli20130707
-#species Hpylo20130707
 #species Hsapi20130707
 #species Mmusc20130707
 #species Rnorv20130707

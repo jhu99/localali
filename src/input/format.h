@@ -21,11 +21,15 @@ class Format
 	void extractHomology();
 	void extractDatasetHomology(NetworksType& networks);
 	void extractDipAc(NetworksType& networks);
+	void writeAlignmentFile(std::string,std::string);// usefulless
+	void writeSubnetworks(MyOption&);
+	int numspecies;
 };
 
 template<typename NetworksType,typename MyOption>
 Format<NetworksType,MyOption>::Format(MyOption& myoption)
 {
+	numspecies=myoption.numspecies;
 }
 
 template<typename NetworksType,typename MyOption>
@@ -169,6 +173,103 @@ void Format<NetworksType,MyOption>::extractDipAc(NetworksType& networks)
 			output.open(filename.c_str());
 		}
 		output << it->first << std::endl;
+	}
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::writeSubnetworks(MyOption& myoption)
+{
+	std::string filename,filename1,filename2,line;
+	std::vector<std::string> filelist;
+	filename.append(myoption.resultfolder);
+	filename.append("alignmentfiles.txt");
+	std::ifstream input(filename);
+	if(!input.is_open())
+	{
+		std::cerr << filename <<" is not existed!" << std::endl;
+	}
+	while(getline(input,line))
+	{
+		std::string ss;
+		std::stringstream linestream(line);
+		linestream >> ss;
+		filelist.push_back(ss);
+	}
+	for(unsigned i=0;i<filelist.size();i++)
+	{
+		writeAlignmentFile(filelist[i],myoption.resultfolder);
+	}
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::writeAlignmentFile(std::string filename, std::string folder)
+{
+	typedef std::unordered_map<std::string, bool> ProteinList;
+	typedef ProteinList::iterator Iter;
+	std::string line,start,ss,protein,outfilename,infilename;
+	float score;
+	std::vector<ProteinList*> subnetworks;
+	infilename.append(folder);
+	infilename.append("alignments/");
+	infilename.append(filename);
+	std::ifstream input(infilename);
+	if(!input.is_open())
+	{
+		std::cerr << infilename <<" is not existed!" << std::endl;
+	}
+	for(int i=0;i<numspecies;i++)
+	{
+		subnetworks.push_back(new std::unordered_map<std::string, bool>());
+	}
+	bool linenum=false;
+	while(getline(input,line))
+	{
+		std::size_t found = line.find_first_of(",");
+		while (found!=std::string::npos)
+		{
+			line[found]=' ';
+			found=line.find_first_of(",",found+1);
+		}
+		std::stringstream linestream(line);
+		if(!linenum)
+		{
+			linestream >> start >> ss >> score;
+			linenum=true;
+			continue;
+		}
+		for(int i=0; i<numspecies; i++)
+		{ 
+			linestream >> protein;
+			if(subnetworks[i]->find(protein)==subnetworks[i]->end())
+			{
+				(*subnetworks[i])[protein]=true;
+			}
+		}
+	}
+	for(int i=0; i<numspecies; i++)
+	{
+		outfilename.clear();
+		outfilename.append(folder);
+		outfilename.append("species_");
+		outfilename.append(convert_num2str(i));
+		outfilename.append("/");
+		outfilename.append(filename);
+		std::ofstream output(outfilename);
+		ProteinList *subnetwork;
+		subnetwork=subnetworks[i];
+		if(!output.is_open())
+		{
+			std::cerr << outfilename <<" is not existed!" << std::endl;
+		}
+		output <<"# score: " << score << std::endl; 
+		for(Iter it=subnetwork->begin();it!=subnetwork->end();++it)
+		{
+			output << it->first << std::endl;
+		}
+	}
+	for(int i=0;i<numspecies;i++)
+	{
+		delete subnetworks[i];
 	}
 }
 #endif
