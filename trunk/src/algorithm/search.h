@@ -56,7 +56,7 @@ public:
 	typedef std::list<std::vector<std::string> > SpineList;
 
     unsigned _numSpecies;
-    int _seedSize;
+    unsigned _seedSize;
     int _seedTries;
     int _numSamples;
 	int _minExt;
@@ -809,7 +809,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	std::ofstream fout;
 	csize=mySubNetList.size();
 	localtree.readTree(_treefile);
-	std::cout <<"# subnets" << csize << std::endl;
+	std::cout <<"# subnets:" << csize << std::endl;
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree,fout,outnum) firstprivate(myPrivateVariablePlus)
 	for(int i=0;i<csize;i++)
 	{
@@ -1237,7 +1237,7 @@ Search<NP,SN,LG,OP>::checkConnectionParallel(PrivateVariable& myprivateVariable,
 	myprivateVariable.numConnected=0;
 	for( myprivateVariable.ei=0;myprivateVariable.ei<_numSpecies;++myprivateVariable.ei)
 	{
-		if(myprivateVariable.subnet.subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.subnet.subgraphs[myprivateVariable.ei]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
+		if(myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
 		myprivateVariable.numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
@@ -1252,6 +1252,7 @@ Search<NP,SN,LG,OP>::sampleKSpineParallel(PrivateVariable& myprivateVariable,Lay
 	
 	myprivateVariable.m_candidates.clear();//m_candidates -> candidates for expand to a kspine;
 	myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.node]);
+	myprivateVariable.spine.clear();
 	myprivateVariable.spine.data[myprivateVariable.host]=myprivateVariable.node;
 	myprivateVariable.spine.states[myprivateVariable.host]=true;
 	if(g_verbosity==VERBOSE_DEBUG)
