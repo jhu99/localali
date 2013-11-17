@@ -107,7 +107,6 @@ bool runParser(ArgParser& myparser, Option& myoption)
   myprofile.getOption(myoption);
   if(myoption.parallel)
   {
-	  //myoption.numthreads=4;
 	  std::cout << "This program will run with "<< myoption.numthreads <<" multiple threads." << std::endl;
   }
   return true;

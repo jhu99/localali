@@ -10,6 +10,7 @@ Data: 02.10.2013*/
 #include <stdio.h>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
 
 class Analyse
 {
@@ -297,8 +298,9 @@ void Analyse::assessQuality(std::string folder,int speciesnum)
 		}
 		rate=numCoherent/static_cast<float>(numDiscovered);
 		std::cout <<"Species " << k <<":"<< std::endl;
-		std::cout << "The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
+		std::cout << "The number of coherent subnetworks they cover: " << numCoherent << std::endl;
 		std::cout << "The number of distinct GO categories they cover: " << go_category.size() << std::endl;
+		std::cout << std::setprecision(3) << "The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
 	}
 }
 #endif

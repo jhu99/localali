@@ -77,7 +77,7 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
   std::ifstream input(filename.c_str());
   if(!input.good())
   {
-    std::cerr << filename <<"cannot be opened!"<<std::endl;
+    std::cerr << filename <<" cannot be opened!"<<std::endl;
     return 0;
   }
   std::string line;
