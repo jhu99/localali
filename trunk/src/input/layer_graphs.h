@@ -11,6 +11,7 @@ Date: 10.06.2012*/
 #include <iostream>
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
+#include <unordered_map>
 
 template<typename GR, typename NP>
 class Layer_graphs

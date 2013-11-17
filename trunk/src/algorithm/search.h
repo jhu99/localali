@@ -24,6 +24,7 @@ Description: Searching high-scoring subnetworks.
 #include "function.h"
 #include <omp.h>
 #include "algorithm/score.h"
+#include <unordered_map>
 //#include <assert.h>
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -181,6 +182,7 @@ public:
 	bool expandspineParallel(PrivateVariable&, K_Spine spine, std::vector<Node> candidates, LayerGraph&,NetworkPool&);
 	bool expandspine(K_Spine,K_Spine&,std::vector<Node>,Node,LayerGraph&,NetworkPool&,unsigned);
 	void verifyspine(LayerGraph&,NetworkPool&);
+	void verifyspineParallel(LayerGraph&,NetworkPool&);
 	bool checkConnection(SubNet*,LayerGraph&,NetworkPool&);
 	bool checkConnectionParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
 	void expandRefinedSeeds(PrivateVariable&,LayerGraph&,NetworkPool&);
@@ -721,6 +723,30 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 		myPrivateVariablePlus.subnet->subgraphs.push_back(myPrivateVariablePlus.graphdata);
 	}
 	return true;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+void Search<NP, SN, LG, OP>::verifyspineParallel(LayerGraph& layergraph,
+		NetworkPool& networks) {
+	int nodenum=layergraph.nodeNum;
+	PrivateVariable myPrivateVariable(1);
+	NodeIt myit=NodeIt(layergraph.graph);
+	#pragma omp parallel for num_threads(_numthreads) ordered schedule(dynamic,1) shared(layergraph,networks,myit,nodenum) firstprivate(myPrivateVariable)
+	for(int i=0;i<nodenum;i++)
+	{
+		#pragma omp ordered
+		{
+			myPrivateVariable.node=myit;
+			++myit;
+		}
+		if(sampleKSpineParallel(myPrivateVariable,layergraph,networks))
+		{
+			#pragma omp critical
+			{
+				layergraph.setConfiguration(myPrivateVariable.node);
+			}
+		}
+	}
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
