@@ -1106,7 +1106,7 @@ template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::searchSeedsParallel(LayerGraph& layergraph, NetworkPool& networks)
 {
-	verifyspine(layergraph, networks);
+	verifyspineParallel(layergraph, networks);
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks) firstprivate(myPrivateVariable)
 	for(int i=0; i<_numSamples;i++)
