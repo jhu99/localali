@@ -1,6 +1,7 @@
 /* alignment.h
 Author: Jialu Hu
 Data: 02.10.2013*/
+#pragma once
 #ifndef ALIGNMENT_H_
 #define ALIGNMENT_H_
 
@@ -19,7 +20,10 @@ public:
 	Alignment();
 	~Alignment(){}
 	void readAlignment(std::string, std::string, int);
-	void writeAlignmentFile(std::string, int, std::unordered_map<std::string,std::string>&);
+	void writeAlignmentFile(std::string,
+							int,
+							std::unordered_map<std::string,std::string>&,
+							std::unordered_map<std::string,int>&);
 	AlignmentMap alignmap;
 	std::string alignmentfile;
 	float score;
@@ -67,7 +71,10 @@ void Alignment::readAlignment(std::string folder, std::string filename, int nums
 	input.close();
 }
 
-void Alignment::writeAlignmentFile(std::string folder, int numspecies, std::unordered_map<std::string,std::string>& idmap)
+void Alignment::writeAlignmentFile(std::string folder,
+									int numspecies,
+									std::unordered_map<std::string,std::string>& idmap,
+									std::unordered_map<std::string,int>& coveredProteinMap)
 {
 	typedef std::unordered_map<std::string, bool> ProteinList;
 	typedef ProteinList::iterator Iter;
@@ -103,6 +110,8 @@ void Alignment::writeAlignmentFile(std::string folder, int numspecies, std::unor
 		for(int i=0; i<numspecies; i++)
 		{ 
 			linestream >> protein;
+			if(coveredProteinMap.find(protein)==coveredProteinMap.end())
+				coveredProteinMap[protein]=1;
 			if(subnetworks[i]->find(protein)==subnetworks[i]->end())
 			{
 				(*subnetworks[i])[protein]=true;
