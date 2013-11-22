@@ -1,10 +1,10 @@
-folder ./dataset/dip/7-way/
+folder ./dataset/dip/3-way/
 species Celeg20130707
 species Dmela20130707
-species	Ecoli20130707
-species Hsapi20130707
-species Mmusc20130707
-species Rnorv20130707
+#species	Ecoli20130707
+#species Hsapi20130707
+#species Mmusc20130707
+#species Rnorv20130707
 species Scere20130707
 layers  input_blast.txt
 tree    tree.txt
