@@ -1,6 +1,8 @@
 /* analyse.h
 Author: Jialu Hu
 Data: 02.10.2013*/
+
+#pragma once
 #ifndef ANALYSE_H_
 #define ANALYSE_H_
 #include "analyse/subnetwork.h"
@@ -17,7 +19,9 @@ class Analyse
 public:
 	Analyse();
 	~Analyse(){};
+	int numCoveredProtein;
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
+	std::unordered_map<std::string,int> coveredProteinMap;
 	std::vector<Subnetwork*> sublist;
 	std::vector<Alignment*> alignmentlist;
 	void translate(std::string,int);// subnetworks and remove redundant alignments.
@@ -135,7 +139,7 @@ void Analyse::translate_alignment(std::string folder, int speciesnum)
 	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
 	{
 		std::vector<Alignment*>::iterator it2=it1+1;
-		(*it1)->writeAlignmentFile(folder,speciesnum, protein_dip_uniprot_map);
+		(*it1)->writeAlignmentFile(folder,speciesnum, protein_dip_uniprot_map,coveredProteinMap);
 		// write subnetworks for it1;
 		while(it2!=alignmentlist.end())
 		{
@@ -148,6 +152,7 @@ void Analyse::translate_alignment(std::string folder, int speciesnum)
 			}
 		}
 	}
+	numCoveredProtein=coveredProteinMap.size();
 }
 
 bool Analyse::checkRedundanteAli(Alignment* alig1, Alignment* alig2)
