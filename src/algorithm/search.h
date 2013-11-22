@@ -726,19 +726,18 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
-void Search<NP, SN, LG, OP>::verifyspineParallel(LayerGraph& layergraph,
-		NetworkPool& networks) {
+void Search<NP, SN, LG, OP>::verifyspineParallel(LayerGraph& layergraph, NetworkPool& networks) {
 	int nodenum=layergraph.nodeNum;
 	PrivateVariable myPrivateVariable(1);
-	NodeIt myit=NodeIt(layergraph.graph);
-	#pragma omp parallel for num_threads(_numthreads) ordered schedule(dynamic,1) shared(layergraph,networks,myit,nodenum) firstprivate(myPrivateVariable)
+	std::vector<NodeIt> mynodeit;
+	for(NodeIt myit=NodeIt(layergraph.graph);myit!=lemon::INVALID;++myit)
+	{
+		mynodeit.push_back(myit);
+	}
+	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mynodeit,nodenum) firstprivate(myPrivateVariable)
 	for(int i=0;i<nodenum;i++)
 	{
-		#pragma omp ordered
-		{
-			myPrivateVariable.node=myit;
-			++myit;
-		}
+		myPrivateVariable.node=mynodeit[i];
 		if(sampleKSpineParallel(myPrivateVariable,layergraph,networks))
 		{
 			#pragma omp critical
