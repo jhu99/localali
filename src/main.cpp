@@ -185,15 +185,15 @@ int main(int argc, char** argv)
 		else if(myoption.task==1)
 		// Assess the quality of subnetworks;
 		{
-			networks.initNetworkPool(myoption.networkfiles);
 			myanalyse.assessQuality(myoption.resultfolder,myoption.numspecies);
-			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
 		}
 		else if(myoption.task==2)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant alignments;
 		{
+			networks.initNetworkPool(myoption.networkfiles);
 			myanalyse.readIdMap();
 			myanalyse.translate_alignment(myoption.resultfolder,myoption.numspecies);
+			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
 		}else
 		{
 		}
