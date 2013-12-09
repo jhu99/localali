@@ -1,11 +1,14 @@
 /* subnetwork.h
 Author: Jialu Hu
 Data: 02.10.2013*/
+#pragma once
 #ifndef SUBNETWORK_H_
 #define SUBNETWORK_H_
 
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include <unordered_map>
 
 class Subnetwork
 {

@@ -23,6 +23,7 @@ class Format
 	void extractDipAc(NetworksType& networks);
 	void writeAlignmentFile(std::string,std::string);// usefulless
 	void writeSubnetworks(MyOption&);
+	void partitionGOA(std::string);
 	int numspecies;
 };
 
@@ -199,6 +200,35 @@ void Format<NetworksType,MyOption>::writeSubnetworks(MyOption& myoption)
 	{
 		writeAlignmentFile(filelist[i],myoption.resultfolder);
 	}
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::partitionGOA(std::string filename)
+{
+	std::ifstream input(filename);
+	std::ofstream outputs[NUM_GOA_PARTS];
+	int linenum=0;
+	std::string outfilename,line;
+	for(int i=0;i<NUM_GOA_PARTS;i++)
+	{
+		outfilename="./dataset/goa/partition/gene_association.goa_target_";
+		outfilename.append(convert_num2str(i));
+		outputs[i].open(outfilename);
+	}
+	int mod=0;
+	while(std::getline(input,line))
+	{
+		if(linenum < 49493) mod=0;
+		else if(linenum < 2*49493) mod=1;
+		else mod=2;
+		outputs[mod] << line << std::endl;
+		linenum++;
+	}
+	for(int i=0;i<NUM_GOA_PARTS;i++)
+	{
+		outputs[i].close();
+	}
+	input.close();
 }
 
 template<typename NetworksType,typename MyOption>

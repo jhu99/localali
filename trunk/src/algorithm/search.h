@@ -806,7 +806,8 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	int csize=refinedSeeds.size();
 	int outnum=0;
 	std::cout <<"Seed size: " << _seedSize << std::endl;
-	std::cout <<"# Refind seeds: " << csize <<std::endl;
+	std::cout <<"Refind seeds: " << csize <<std::endl;
+	std::cout <<"Seeds tries: " << _seedTries <<std::endl;
 	std::cout << "Min subnet:" << _seedSize+_minExt << std::endl;
 	std::cout << "Max subnet:" << _seedSize+_maxExt << std::endl;
 	MyTree localtree;
@@ -834,7 +835,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	std::ofstream fout;
 	csize=mySubNetList.size();
 	localtree.readTree(_treefile);
-	std::cout <<"# subnets:" << csize << std::endl;
+	std::cout <<"Subnets:" << csize << std::endl;
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree,fout,outnum) firstprivate(myPrivateVariablePlus)
 	for(int i=0;i<csize;i++)
 	{
@@ -860,7 +861,8 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		}
 		clearStructure(myPrivateVariablePlus,localtree);
 	}
-	std::cout << "# alignments: " << outnum << std::endl;
+	std::cout << "Threshold: " << _score_threshold << std::endl;
+	std::cout << "Alignments: " << outnum << std::endl;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -1247,7 +1249,7 @@ bool
 	int numConnected=0;
 	for(unsigned i=0;i<_numSpecies;++i)
 	{
-		if(subnet->subgraphs[i]->edgeNum< (subnet->subgraphs[i]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
+		if(subnet->subgraphs[i]->edgeNum< (subnet->subgraphs[i]->nodeNum-NUM_GAP_EDGE) )continue;/// To fulfills the minimal number of edges. 
 		numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
@@ -1262,7 +1264,7 @@ Search<NP,SN,LG,OP>::checkConnectionParallel(PrivateVariable& myprivateVariable,
 	myprivateVariable.numConnected=0;
 	for( myprivateVariable.ei=0;myprivateVariable.ei<_numSpecies;++myprivateVariable.ei)
 	{
-		if(myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->nodeNum-2) )continue;/// To fulfills the minimal number of edges. 
+		if(myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->nodeNum-NUM_GAP_EDGE) )continue;/// To fulfills the minimal number of edges. 
 		myprivateVariable.numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
