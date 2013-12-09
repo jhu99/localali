@@ -7,6 +7,8 @@ Data: 02.10.2013*/
 #define ANALYSE_H_
 #include "analyse/subnetwork.h"
 #include "analyse/alignment.h"
+#include "analyse/module.h"
+#include "analyse/golist.h"
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
@@ -16,14 +18,21 @@ Data: 02.10.2013*/
 
 class Analyse
 {
+	struct CrossVerification
+	{
+		std::vector<int> predictions;
+		std::vector<int> corrections;
+	};
 public:
 	Analyse();
 	~Analyse(){};
 	int numCoveredProtein;
+	std::string resultFolder;
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
 	std::unordered_map<std::string,int> coveredProteinMap;
 	std::vector<Subnetwork*> sublist;
 	std::vector<Alignment*> alignmentlist;
+	std::vector<Module> modulelist;
 	void translate(std::string,int);// subnetworks and remove redundant alignments.
 	void translate_alignment(std::string, int);// translate alignment and remove redundant alignments.
 	void readIdMap();
@@ -31,6 +40,13 @@ public:
 	bool checkRedundante(Subnetwork*, Subnetwork*);
 	bool checkRedundanteAli(Alignment*,Alignment*);
 	void assessQuality(std::string,int);
+	void predictFunction(std::string,int);
+	void parseTermFile(std::ifstream&,std::unordered_map<std::string,bool>&);
+	void countPrediction(std::string);
+	void countVerification(std::string,CrossVerification&);
+	void countCrossVerification(std::string,int);
+	void verifyPrediction(std::string);
+	
 	struct Compare_Sub
 	{
 		bool operator() (Subnetwork* sub1, Subnetwork* sub2) {return sub1->score > sub2->score;}
@@ -64,6 +80,198 @@ void Analyse::readIdMap()
 		}
 		input.close();
 	}
+}
+
+void Analyse::verifyPrediction(std::string folder)
+{
+	std::string filename1,filename2,filename3,commandline,parameter;
+	GoList golist;
+	std::unordered_map<std::string,bool> ancestormap;
+	golist.readGeneOntology("./dataset/goa/gene_association.goa_target.fsst");
+	filename1.append(folder);filename1.append("function_prediction.txt");
+	filename2.append(folder);filename2.append("verify_prediction.txt");
+	std::ifstream input(filename1),inputlist;
+	std::ofstream output(filename2,std::ofstream::out);
+	filename1.clear();
+	filename1="./dataset/goancestors/list.txt";
+	inputlist.open(filename1);
+	std::string line;
+	while(std::getline(inputlist,line))
+	{
+		std::stringstream streamline(line);
+		ancestormap[line]=true;
+	}
+	inputlist.close();
+	
+	if(!input.is_open())
+	{
+		std::cerr << "Cann't open " <<filename1 <<".\n";return;
+	}
+	while(std::getline(input,line))
+	{
+		if(line[0] =='#')
+		{
+			output << line << std::endl;continue;
+		}
+		std::stringstream streamline(line);
+		std::string protein, goid;
+		streamline >> protein >> goid;
+		bool exist=false;
+		if(golist.go_map.find(protein)!=golist.go_map.end())
+		{
+			if(golist.go_map[protein].BP.find(goid)!=golist.go_map[protein].BP.end())
+			{
+				exist=true;
+			}
+			else if(!golist.go_map[protein].BP.empty())
+			{
+				parameter.clear();
+				for(auto it=golist.go_map[protein].BP.begin();it!=golist.go_map[protein].BP.end();++it)
+				{
+					filename3.clear();filename3.append("./dataset/goancestors/");filename3.append(*it);filename3.append(".ancestors");
+					if(ancestormap.find(filename3)==ancestormap.end())
+					{
+						commandline.clear();commandline.append("./bin/go_ancestor_finder.sh ");commandline.append(*it);system(commandline.c_str());ancestormap[filename3]=true;
+					}
+					parameter.append(filename3);parameter.append("  ");
+				}
+				parameter.append(" > ");
+				parameter.append(folder); parameter.append("gotree.txt");
+				commandline.clear();commandline.append("cat ");commandline.append(parameter);
+				system(commandline.c_str());
+				filename3.clear();filename3.append(folder);filename3.append("gotree.txt");
+				inputlist.open(filename3);
+				std::string line_gotree;
+				while(std::getline(inputlist,line))
+				{
+					line_gotree.append(line);line_gotree.append(";");
+				}
+				inputlist.close();
+				if(line_gotree.find(goid)!=std::string::npos)
+					exist=true;
+			}
+		}
+		if(exist)
+		{
+			output << "YES\t" << protein <<"\t" << goid << std::endl;
+		}else
+		{
+			output << "NO\t" << protein << "\t" << goid << std::endl;
+		}
+	}
+	output.close();
+}
+
+void Analyse::countCrossVerification(std::string folder,int methods)
+{
+	std::vector<CrossVerification> cvList;
+	for(int i=0;i<3;i++)
+	{
+		std::string filename=folder;
+		CrossVerification cv;
+		if(methods==1) filename.append("localali_");
+		else filename.append("netblastm_");
+		filename.append(convert_num2str(i));
+		if(methods==1) filename.append("/sample_5");
+		else filename.append("/sample_0");
+		filename.append("/verify_prediction.txt");
+		countVerification(filename,cv);
+		cvList.push_back(cv);
+	}
+	unsigned numspecies=0;
+	numspecies=cvList[0].corrections.size();
+	for(int i=0;i<3;i++)
+	{
+		CrossVerification cv=cvList[i];
+		for(unsigned j=0;j<cv.corrections.size();j++)
+		{
+			std::cout << "species " <<j <<":" << cv.corrections[j] <<"\t" << cv.predictions[j] <<"\t" ;
+			std::cout << std::setprecision(3) << 100*cv.corrections[j]/(1.0*cv.predictions[j])<< std::endl;
+		}
+	}
+	std::cout <<" Summary: " << std::endl;
+	for(unsigned j=0;j<numspecies;j++)
+	{
+		int corrections=0,predictions=0;
+		for(int i=0;i<3;i++)
+		{
+			corrections+=cvList[i].corrections[j];
+			predictions+=cvList[i].predictions[j];
+		}
+		std::cout << "species" << j << ":" << corrections <<"\t" << predictions << "\t" ;
+		std::cout << std::setprecision(3) << 100*corrections/(1.0*predictions)<< std::endl;
+	}
+}
+
+void Analyse::countVerification(std::string formatfile,CrossVerification& cv)
+{
+	std::ifstream input(formatfile.c_str());
+	int species=-1,numCorrect=0,numPrediction=0;
+	std::string yn,goid,protein,line;
+	while(std::getline(input,line))
+	{
+		if(line[0]=='#')
+		{
+			if(species==-1)
+			{
+				species++;
+				std::getline(input,line);
+				continue;
+			}
+			std::getline(input,line);
+			cv.predictions.push_back(numPrediction);
+			cv.corrections.push_back(numCorrect);
+			numCorrect=0;
+			numPrediction=0;
+			species++;
+			continue;
+		}
+		std::stringstream streamline(line);
+		streamline >> yn >> protein >> goid;
+		if(yn.compare("YES")==0)
+		{numCorrect++;numPrediction++;
+		}
+		else if(yn.compare("NO")==0)numPrediction++;
+		else continue;
+	}
+	cv.predictions.push_back(numPrediction);
+	cv.corrections.push_back(numCorrect);
+}
+
+void Analyse::countPrediction(std::string formatfile)
+{
+	std::ifstream input(formatfile.c_str());
+	int numPredictions=0,numAllPredictions=0,species=-1;
+	std::vector<int> numProteinsList,numPredictionsList;
+	std::unordered_map<std::string,std::string> predictionMap,predictionAllMap;
+	std::string line,protein,goid;
+	while(std::getline(input,line))
+	{
+		if(line[0]=='#')
+		{
+			if(species==-1)
+			{
+				species++;
+				std::getline(input,line);
+				continue;
+			}
+			std::getline(input,line);
+			std::cout << "Species "<< species <<": "<< numPredictions <<" predictions, " << predictionMap.size() <<" proteins" << std::endl;
+			species++;
+			numPredictions=0;
+			predictionMap.clear();continue;
+		}
+		std::stringstream streamline(line);
+		streamline >> protein >> goid;
+		numPredictions++;numAllPredictions++;
+		if(predictionMap.find(protein)==predictionMap.end())
+			predictionMap[protein]=goid;
+		if(predictionAllMap.find(protein)==predictionAllMap.end())
+			predictionAllMap[protein]=goid;
+	}
+	std::cout << "Species "<< species <<": "<< numPredictions <<" predictions, " << predictionMap.size() <<" proteins" << std::endl;
+	std::cout << "Alignment: "<< numAllPredictions <<" predictions, " << predictionAllMap.size() <<" proteins" <<std::endl;
+	input.close();
 }
 
 void Analyse::translate(std::string folder, int speciesnum)
@@ -231,6 +439,95 @@ void Analyse::removeRedundant(std::string folder, int speciesnum)
 	}
 }
 
+void Analyse::predictFunction(std::string folder,int speciesnum)
+{
+	std::string filename,item;
+	std::ifstream input,ingolist;
+	std::vector<std::string> filelist;
+	std::unordered_map<std::string,bool> ancestormap;
+	resultFolder=folder;
+	filename=(folder);filename.append("function_prediction.txt");
+	std::ofstream output(filename.c_str());
+	ingolist.open("./dataset/goancestors/list.txt");
+	while(std::getline(ingolist,item))
+	{
+		ancestormap[item]=true;
+	}
+	ingolist.close();
+	for(int k=0;k<speciesnum;k++)
+	{
+		filename.clear();filename.append(folder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
+		input.open(filename.c_str());
+		filelist.clear();
+		while (std::getline(input,item))
+		{
+			filelist.push_back(item);// number of reported hits
+		}
+		input.close();
+		modulelist.clear();
+		for(std::vector<std::string>::iterator it=filelist.begin();it!=filelist.end();++it)
+		{
+			filename=*it;
+			input.open(filename.c_str());
+			parseTermFile(input,ancestormap);
+			input.close();
+		}
+		// output everything.
+		output << "# Predicted function for species " << k <<":"<< std::endl;
+		output << "# Functionally coherent modules: " << modulelist.size() << std::endl;
+		for(std::vector<Module>::iterator it=modulelist.begin();it!=modulelist.end();++it)
+		{
+			it->outputPredictedFunction(output);
+		}
+	}
+	output.close();
+}
+
+void Analyse::parseTermFile(std::ifstream& input, std::unordered_map<std::string,bool>& ancestormap)
+{
+	std::string line;
+	int signal=0,myindex=0;
+	Module mymodule(resultFolder);
+	while(std::getline(input,line))
+	{
+		if(line.compare("The following gene(s) will be considered:")==0)
+		{
+			signal=1;myindex=0;continue;
+		}
+		else if(line.compare("The following gene(s) were not recognized, and will not be considered:")==0)
+		{
+			signal=2;myindex=0;continue;
+		}
+		else if(line.compare("Finding terms for P")==0)
+		{
+			signal=3;myindex=0;continue;
+		}
+		else if(line.compare("Finding terms for C")==0)
+		{
+			signal=4;myindex=0;continue;
+		}
+		else if(line.compare("Finding terms for F")==0)
+		{
+			signal=5;myindex=0;continue;
+		}
+		else if(line.compare("")==0)
+		{
+			continue;
+		}
+		switch (signal)
+		{
+		case 1:mymodule.readConsideredProteins(line);break;//readConsideredGenes(line,myindex);break;
+		case 2:mymodule.readUnconsideredProteins(line,myindex);myindex++;break;
+		case 3:mymodule.readEnrichedGeneOntology(line,myindex,ancestormap);myindex++;if(myindex==10)myindex=0;break;
+		case 4:;break;
+		default:
+			break;
+		}
+	}
+	if(!mymodule.goCandidates.empty())
+		modulelist.push_back(mymodule);
+}
+
 void Analyse::assessQuality(std::string folder,int speciesnum)
 {
 	std::string filename;
@@ -282,7 +579,7 @@ void Analyse::assessQuality(std::string folder,int speciesnum)
 				else if(!switcher1 && switcher2)
 				{
 					if(line.compare("Finding terms for C")==0)break;
-					else if(line.compare("No terms were found for this aspect with a corrected P-value <= 0.05.")==0)
+					else if(line.compare("No terms were found for this aspect with a corrected P-value <= 0.01.")==0)
 					{
 						isCoherent=false;
 						break;

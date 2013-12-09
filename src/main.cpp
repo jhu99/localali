@@ -33,8 +33,10 @@ typedef struct _Option
   std::string profile;
   std::string treefile;
 	std::string alignmentfile;
+	std::string formatfile;
   double beta;
 	double score_threshold;
+	int method;
 	int task;
   int numspecies;
   int seedsize;
@@ -48,16 +50,17 @@ typedef struct _Option
   _Option()
   {
     profile="./profile.txt";
+		method=1;
 		task=0;
     numspecies=3;
     seedsize=3;
     seedtries=1;
-		minext=6;
-		maxext=12;
+		minext=3;
+		maxext=7;
     numsamples=1000;
     numconnected=3;
     numthreads=1;
-		score_threshold=0.4;
+		score_threshold=0.1;
 		parallel=false;
   }
 }Option;
@@ -85,10 +88,12 @@ bool setParser(ArgParser& parser, Option& myoption)
   .onlyOneGroup("method")
   .mandatoryGroup("method")
 	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
+	.refOption("method","Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.", myoption.method)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
 	.refOption("resultfolder","Configuration of various input parameters. Default is \"./result/dip/3-way/localali/", myoption.resultfolder)
+	.refOption("formatfile","Input file which is used to analyse the quality of alignments.",myoption.formatfile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
-	.refOption("seedtries","Number of tries for each refined seeds. Default is 3.", myoption.seedtries)
+	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 3.", myoption.seedsize)
 	.refOption("minext","Minimal number of the extension . Default is 1.", myoption.minext)
 	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
@@ -168,8 +173,9 @@ int main(int argc, char** argv)
 			// write networkblast-m complexes with alignment score
 		{
 			myformat.writeSubnetworks(myoption);
-		}else
+		}else if(myoption.task==6)
 		{
+			myformat.partitionGOA(myoption.formatfile);
 		}
 	}
 	else if(myparser.given("analyse"))
@@ -194,8 +200,22 @@ int main(int argc, char** argv)
 			myanalyse.readIdMap();
 			myanalyse.translate_alignment(myoption.resultfolder,myoption.numspecies);
 			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
-		}else
+		}else if(myoption.task==3)
 		{
+			myanalyse.predictFunction(myoption.resultfolder,myoption.numspecies);
+			// myanalyse.countPrediction(myoption.formatfile);
+		}
+		else if(myoption.task==4)
+		{
+			myanalyse.countPrediction(myoption.formatfile);
+		}
+		else if(myoption.task==5)
+		{
+			myanalyse.countCrossVerification(myoption.formatfile, myoption.method);
+		}
+		else if(myoption.task==6)
+		{
+			myanalyse.verifyPrediction(myoption.formatfile);
 		}
 	}
 	t.stop();
