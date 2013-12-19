@@ -55,12 +55,12 @@ typedef struct _Option
     numspecies=3;
     seedsize=3;
     seedtries=1;
-		minext=3;
-		maxext=7;
+		minext=11;
+		maxext=12;
     numsamples=1000;
-    numconnected=3;
+    numconnected=2;
     numthreads=1;
-		score_threshold=0.1;
+		score_threshold=0.2;
 		parallel=false;
   }
 }Option;
@@ -79,7 +79,7 @@ bool setParser(ArgParser& parser, Option& myoption)
 	parser
 	.boolOption("version","Show the version number.")
   .boolOption("alignment","Execute the alignment algorithm.")
-  .boolOption("analyse","Make analysis on alignmenr result.")
+  .boolOption("analyse","Make analysis on the alignment results.")
   .boolOption("format","Process input or output file into proper format.")
 	.optionGroup("method","version")
   .optionGroup("method","alignment")
@@ -90,18 +90,18 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
 	.refOption("method","Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.", myoption.method)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
-	.refOption("resultfolder","Configuration of various input parameters. Default is \"./result/dip/3-way/localali/", myoption.resultfolder)
+	.refOption("resultfolder","Configuration of various input parameters.", myoption.resultfolder)
 	.refOption("formatfile","Input file which is used to analyse the quality of alignments.",myoption.formatfile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 3.", myoption.seedsize)
-	.refOption("minext","Minimal number of the extension . Default is 1.", myoption.minext)
-	.refOption("maxext","Maximal number of the extension . Default is 2.", myoption.maxext)
+	.refOption("minext","Minimal number of the extension . Default is 11.", myoption.minext)
+	.refOption("maxext","Maximal number of the extension . Default is 12.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
-	.refOption("numsamples","Number of sampled seeds. Default is 40000.", myoption.numsamples)
-	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
-	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.4.", myoption.score_threshold)
-	.refOption("parallel","Run LocalAli in parallel. Default is false.", myoption.parallel);
+	.refOption("numsamples","Number of sampled seeds. Default is 1000.", myoption.numsamples)
+	.refOption("numthreads","Number of threads. Default is 2.", myoption.numthreads)
+	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
+	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel);
 	return true;
 }
 
