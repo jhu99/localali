@@ -19,6 +19,7 @@ public:
 	std::string uniprotname;
 	std::vector<std::string> proteinlist;
 	void readsubnetwork(std::string,std::string);
+	void readsubnetwork2(std::string);
 	void writegenelist(std::unordered_map<std::string,std::string>&);
 };
 
@@ -41,6 +42,27 @@ void Subnetwork::readsubnetwork(std::string filename,std::string translatename)
 			linestream >> start >> protein >> score;
 			firstline=false;
 			continue;
+		}else
+		{
+			linestream >> protein;
+			proteinlist.push_back(protein);
+		}
+	}
+}
+
+void Subnetwork::readsubnetwork2(std::string filename)
+{
+	std::ifstream input(filename.c_str());
+	std::string line;
+	bool firstline=true;
+	while(std::getline(input,line))
+	{
+		std::stringstream linestream(line);
+		std::string start, protein;
+		if(firstline)
+		{
+			linestream >> start >> protein >> score;
+			firstline=false;
 		}else
 		{
 			linestream >> protein;
