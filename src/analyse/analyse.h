@@ -9,6 +9,7 @@ Data: 02.10.2013*/
 #include "analyse/alignment.h"
 #include "analyse/module.h"
 #include "analyse/golist.h"
+#include "analyse/complex.h"
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
@@ -24,7 +25,7 @@ class Analyse
 		std::vector<int> corrections;
 	};
 public:
-	Analyse();
+	Analyse(std::string);
 	~Analyse(){};
 	int numCoveredProtein;
 	std::string resultFolder;
@@ -46,7 +47,10 @@ public:
 	void countVerification(std::string,CrossVerification&);
 	void countCrossVerification(std::string,int);
 	void verifyPrediction(std::string);
-	
+	void verifyComplexes(std::string);
+	void readNonredundantComplexes(Complex&);
+	void checkPurity(Complex&);
+	bool isOverlaped(Subnetwork*,Complex&);
 	struct Compare_Sub
 	{
 		bool operator() (Subnetwork* sub1, Subnetwork* sub2) {return sub1->score > sub2->score;}
@@ -57,8 +61,10 @@ public:
 	} compare_ali;
 };
 
-Analyse::Analyse()
-{}
+Analyse::Analyse(std::string resultfolder)
+{
+	resultFolder=resultfolder;
+}
 
 void Analyse::readIdMap()
 {
@@ -604,5 +610,77 @@ void Analyse::assessQuality(std::string folder,int speciesnum)
 		std::cout << "The number of distinct GO categories they cover: " << go_category.size() << std::endl;
 		std::cout << std::setprecision(3) << "The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
 	}
+}
+
+inline void Analyse::verifyComplexes(std::string complexfilename) {
+	Complex mycomplex;
+	mycomplex.readComplexes(complexfilename);
+	readNonredundantComplexes(mycomplex);
+	checkPurity(mycomplex);
+}
+
+void Analyse::readNonredundantComplexes(Complex& mycomplex) {
+	std::string filename=resultFolder,line;
+	filename.append("nonredundantfiles.txt");
+	std::vector<std::string> filelist;
+	std::ifstream input(filename);
+	while(std::getline(input,line))
+	{
+		filelist.push_back(line);
+	}
+	input.close();
+	sublist.clear();
+	for(unsigned i=0;i<filelist.size();i++)
+	{
+		filename=filelist[i];
+		Subnetwork *mysubnet=new Subnetwork();
+		mysubnet->readsubnetwork2(filename);
+		sublist.push_back(mysubnet);
+	}
+}
+
+inline void Analyse::checkPurity(Complex& mycomplex) {
+	int pureSubnetwork=0;
+	for(unsigned i=0;i<sublist.size();i++)
+	{
+		if(isOverlaped(sublist[i],mycomplex)){
+			pureSubnetwork++;
+		}
+	}
+	std::cout <<"Reported subnetworks:" << sublist.size() << std::endl;
+	std::cout <<"Pure subnetworks:" << pureSubnetwork << std::endl;
+	std::cout <<"Success rate:" << pureSubnetwork/(1.0*sublist.size()) << std::endl;
+}
+
+inline bool Analyse::isOverlaped(Subnetwork* subnet, Complex& mycomplex) {
+	std::unordered_map<std::string,int> complexIdList;
+	std::string maxId;
+	int maxnum=0;
+	for(unsigned i=0;i<subnet->proteinlist.size();i++){
+		auto range=mycomplex.proteinKeyMap.equal_range(subnet->proteinlist[i]);
+		typedef std::unordered_multimap<std::string,std::string>::iterator TIterator;
+		for(TIterator it=range.first;it!=range.second;++it){
+			if(complexIdList.find(it->second)!=complexIdList.end())
+			{
+				int temp=++complexIdList[it->second];
+				if(temp>maxnum){
+					maxnum=temp;
+					maxId=it->second;
+				}
+			}else
+			{
+				complexIdList[it->second]=1;
+				if(1>maxnum){
+					maxnum=1;
+					maxId=it->second;
+				}
+			}
+		}
+	}
+	unsigned minSize=mycomplex.complexMap[maxId].proteinlist.size();
+	if(minSize > subnet->proteinlist.size())
+		minSize=subnet->proteinlist.size();
+	float rate=maxnum/static_cast<float>(minSize);
+	return rate>=0.5;
 }
 #endif

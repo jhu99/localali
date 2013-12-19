@@ -180,7 +180,7 @@ int main(int argc, char** argv)
 	}
 	else if(myparser.given("analyse"))
 	{
-		Analyse myanalyse;
+		Analyse myanalyse(myoption.resultfolder);
 		if(myoption.task==0)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant subnetworks;
 		{
@@ -216,6 +216,10 @@ int main(int argc, char** argv)
 		else if(myoption.task==6)
 		{
 			myanalyse.verifyPrediction(myoption.formatfile);
+		}
+		else if(myoption.task==7)
+		{
+			myanalyse.verifyComplexes(myoption.formatfile);
 		}
 	}
 	t.stop();
