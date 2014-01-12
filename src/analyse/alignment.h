@@ -15,12 +15,15 @@ Data: 02.10.2013*/
 
 class Alignment
 {
+private:
+	//typedef NetworkPoolType NetworkType;
 public:
 	typedef std::unordered_map<std::string,int> AlignmentMap;
 	Alignment();
 	~Alignment(){}
 	void readAlignment(std::string, std::string, int);
-	void writeAlignmentFile(std::string,
+	void writeAlignmentFile(//NetworkType&,
+							std::string,
 							int,
 							std::unordered_map<std::string,std::string>&,
 							std::unordered_map<std::string,int>&);
@@ -29,9 +32,11 @@ public:
 	float score;
 };
 
+
 Alignment::Alignment()
 {
 }
+
 
 void Alignment::readAlignment(std::string folder, std::string filename, int numspecies)
 {
@@ -71,7 +76,9 @@ void Alignment::readAlignment(std::string folder, std::string filename, int nums
 	input.close();
 }
 
-void Alignment::writeAlignmentFile(std::string folder,
+
+void Alignment::writeAlignmentFile(//NetworkType& networks,
+									std::string folder,
 									int numspecies,
 									std::unordered_map<std::string,std::string>& idmap,
 									std::unordered_map<std::string,int>& coveredProteinMap)
@@ -94,12 +101,6 @@ void Alignment::writeAlignmentFile(std::string folder,
 	bool linenum=false;
 	while(getline(input,line))
 	{
-		std::size_t found = line.find_first_of(",");
-		while (found!=std::string::npos)
-		{
-			line[found]=' ';
-			found=line.find_first_of(",",found+1);
-		}
 		std::stringstream linestream(line);
 		if(!linenum)
 		{
@@ -107,11 +108,18 @@ void Alignment::writeAlignmentFile(std::string folder,
 			linenum=true;
 			continue;
 		}
+		std::size_t found = line.find_first_of(",");
+		while (found!=std::string::npos)
+		{
+			line[found]=' ';
+			found=line.find_first_of(",",found+1);
+		}
 		for(int i=0; i<numspecies; i++)
 		{ 
 			linestream >> protein;
 			if(coveredProteinMap.find(protein)==coveredProteinMap.end())
 				coveredProteinMap[protein]=1;
+			//int si=
 			if(subnetworks[i]->find(protein)==subnetworks[i]->end())
 			{
 				(*subnetworks[i])[protein]=true;

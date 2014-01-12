@@ -58,7 +58,7 @@ typedef struct _Option
 		minext=11;
 		maxext=12;
     numsamples=1000;
-    numconnected=2;
+    numconnected=3;
     numthreads=1;
 		score_threshold=0.2;
 		parallel=false;
@@ -73,6 +73,7 @@ typedef Layer_graphs<BpGraph,InputGraph> LayerGraph;
 typedef SubNet<InputGraph,LayerGraph> MySubNet;
 typedef Search<InputGraph, MySubNet, LayerGraph, Option> MySearch;
 typedef Format<InputGraph, Option> MyFormat;
+typedef Analyse<InputGraph> MyAnalyse;
 
 bool setParser(ArgParser& parser, Option& myoption)
 {
@@ -97,9 +98,9 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("seedsize","Size of the seeds. Default is 3.", myoption.seedsize)
 	.refOption("minext","Minimal number of the extension . Default is 11.", myoption.minext)
 	.refOption("maxext","Maximal number of the extension . Default is 12.", myoption.maxext)
-	.refOption("numconnected","Number of connected subnetwork. Default is 2.", myoption.numconnected)
+	.refOption("numconnected","Number of connected subnetwork. Default is 3.", myoption.numconnected)
 	.refOption("numsamples","Number of sampled seeds. Default is 1000.", myoption.numsamples)
-	.refOption("numthreads","Number of threads. Default is 2.", myoption.numthreads)
+	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
 	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
 	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel);
 	return true;
@@ -180,7 +181,7 @@ int main(int argc, char** argv)
 	}
 	else if(myparser.given("analyse"))
 	{
-		Analyse myanalyse(myoption.resultfolder);
+		MyAnalyse myanalyse(myoption.resultfolder);
 		if(myoption.task==0)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant subnetworks;
 		{
@@ -198,12 +199,12 @@ int main(int argc, char** argv)
 		{
 			networks.initNetworkPool(myoption.networkfiles);
 			myanalyse.readIdMap();
-			myanalyse.translate_alignment(myoption.resultfolder,myoption.numspecies);
+			myanalyse.translate_alignment(networks, myoption.resultfolder,myoption.numspecies);
 			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
 		}else if(myoption.task==3)
 		{
 			myanalyse.predictFunction(myoption.resultfolder,myoption.numspecies);
-			// myanalyse.countPrediction(myoption.formatfile);
+			myanalyse.countPrediction(myoption.formatfile);
 		}
 		else if(myoption.task==4)
 		{
@@ -211,7 +212,7 @@ int main(int argc, char** argv)
 		}
 		else if(myoption.task==5)
 		{
-			myanalyse.countCrossVerification(myoption.formatfile, myoption.method);
+			myanalyse.countCrossVerification(myoption.resultfolder, myoption.method,myoption.numsamples);
 		}
 		else if(myoption.task==6)
 		{
