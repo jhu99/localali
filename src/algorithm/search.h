@@ -805,11 +805,11 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	searchSeedsParallel(layergraph,networks);
 	int csize=refinedSeeds.size();
 	int outnum=0;
-	std::cout <<"Seed size: " << _seedSize << std::endl;
-	std::cout <<"Refind seeds: " << csize <<std::endl;
-	std::cout <<"Seeds tries: " << _seedTries <<std::endl;
-	std::cout << "Min subnet:" << _seedSize+_minExt << std::endl;
-	std::cout << "Max subnet:" << _seedSize+_maxExt << std::endl;
+	//std::cout <<"Seed size: " << _seedSize << std::endl;
+	//std::cout <<"Refind seeds: " << csize <<std::endl;
+	//std::cout <<"Seeds tries: " << _seedTries <<std::endl;
+	//std::cout << "Min subnet:" << _seedSize+_minExt << std::endl;
+	//std::cout << "Max subnet:" << _seedSize+_maxExt << std::endl;
 	MyTree localtree;
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 	std::vector<SubNet*> mySubNetList;
@@ -835,7 +835,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	std::ofstream fout;
 	csize=mySubNetList.size();
 	localtree.readTree(_treefile);
-	std::cout <<"Subnets:" << csize << std::endl;
+	//std::cout <<"Subnets:" << csize << std::endl;
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree,fout,outnum) firstprivate(myPrivateVariablePlus)
 	for(int i=0;i<csize;i++)
 	{
@@ -861,8 +861,8 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 		}
 		clearStructure(myPrivateVariablePlus,localtree);
 	}
-	std::cout << "Threshold: " << _score_threshold << std::endl;
-	std::cout << "Alignments: " << outnum << std::endl;
+	//std::cout << "Threshold: " << _score_threshold << std::endl;
+	//std::cout << "Alignments: " << outnum << std::endl;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
