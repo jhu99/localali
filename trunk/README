@@ -59,16 +59,16 @@ tar -zxvf lemon-1.2.3.tar.gz
 
 ################################################################################
 COMPILING
-The compiler g++-4.6 or higher is strongly recommended to compile the source code, but not limited to. Visual Studio 11 is also supported.
-It can be done under Linux with several simple commands as follows:
+The compilers g++-4.6 and its higher variants is strongly recommended to compile the source code, but not limited to. Visual Studio 11 is also supported.
+The compilation should be done under Linux and Mac OS X with several simple commands as follows:
 
 1. Compile LEMON GRAPH LIBRARY
 
 cd $LOCALALI/include/lemon-1.2.3/
 ./configure
 ./make
-./make check 
-./make install (you will need root privileges to be able to do that, but it's not necessary to install)
+./make check (optional)
+./make install (optional)
 
 2. Compile LOCALALI
 
