@@ -27,7 +27,7 @@ localali: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
 	${CXX} ${CXXFLAGS} -o $@ $^ 
 
 move:
-	mv localali ./bin
+	mv localali ./bin/
 
 #lemon: lemon-config lemon-make
 
