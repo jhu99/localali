@@ -59,7 +59,7 @@ tar -zxvf lemon-1.2.3.tar.gz
 
 ################################################################################
 COMPILING
-The compilers g++-4.6 and its higher variants is strongly recommended to compile the source code, but not limited to. Visual Studio 11 is also supported.
+The compilers g++-4.6 as well as its higher variants is strongly recommended to compile the source code, but not limited to. Visual Studio 11 is also supported.
 The compilation should be done under Linux and Mac OS X with several simple commands as follows:
 
 1. Compile LEMON GRAPH LIBRARY
