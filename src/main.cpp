@@ -32,18 +32,18 @@ typedef struct _Option
   std::string resultfolder;
   std::string profile;
   std::string treefile;
-	std::string alignmentfile;
-	std::string formatfile;
+  std::string alignmentfile;
+  std::string formatfile;
   double beta;
-	double score_threshold;
-	int method;
-	int task;
+  double score_threshold;
+  int method;
+  int task;
   int numspecies;
   int seedsize;
   int seedtries;
   int minext;
   int maxext;
-  int numsamples;
+  int numseeds;
   int numconnected;
   int numthreads;
   bool parallel;
@@ -53,11 +53,11 @@ typedef struct _Option
 		method=1;
 		task=0;
     numspecies=3;
-    seedsize=3;
+    seedsize=2;
     seedtries=1;
 		minext=11;
 		maxext=12;
-    numsamples=1000;
+    numseeds=200;
     numconnected=3;
     numthreads=1;
 		score_threshold=0.2;
@@ -95,11 +95,11 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("formatfile","Input file which is used to analyse the quality of alignments.",myoption.formatfile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
-	.refOption("seedsize","Size of the seeds. Default is 3.", myoption.seedsize)
+	.refOption("seedsize","Size of the seeds. Default is 2.", myoption.seedsize)
 	.refOption("minext","Minimal number of the extension . Default is 11.", myoption.minext)
 	.refOption("maxext","Maximal number of the extension . Default is 12.", myoption.maxext)
 	.refOption("numconnected","Number of connected subnetwork. Default is 3.", myoption.numconnected)
-	.refOption("numsamples","Number of sampled seeds. Default is 1000.", myoption.numsamples)
+	.refOption("numseeds","Number of refined seeds. Default is 200.", myoption.numseeds)
 	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
 	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
 	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel);
@@ -130,7 +130,7 @@ int main(int argc, char** argv)
   MySearch localAlignment(myoption);
   Timer t(false);
 
-  g_verbosity=VERBOSE_ESSENTIAL;//VERBOSE_ESSENTIAL;
+  g_verbosity=VERBOSE_DEBUG;//VERBOSE_ESSENTIAL;
 	t.start();
 
 	if(myparser.given("alignment"))
@@ -146,12 +146,15 @@ int main(int argc, char** argv)
 		if(myoption.task==0)
 			// Convert Celeg20130707.txt.data etc.. -> Celeg20130707-int.txt (interactorA	interactorB 0.9)
 		{
-			myformat.extractInteractions();
+			myformat.extractIntActInteractions();
+			//myformat.extractInteractions();
 		}
 		else if(myoption.task==1)
 			// Convert homology-list-20130826.b6.data -> homology-list-20130826.evals and homology-list-20130826.bscore
 		{
-			myformat.extractHomology();
+			networks.initNetworkPool(myoption.networkfiles);
+			myformat.extractIntActHomology(networks);
+			//myformat.extractHomology();
 		}
 		else if(myoption.task==2)
 			// Convert homology-list-20130826.evals -> Celeg20130707-Celeg20130707.evals Celeg20130707-Dmela20130707.evals...
@@ -212,7 +215,7 @@ int main(int argc, char** argv)
 		}
 		else if(myoption.task==5)
 		{
-			myanalyse.countCrossVerification(myoption.resultfolder, myoption.method,myoption.numsamples);
+			//myanalyse.countCrossVerification(myoption.resultfolder, myoption.method,myoption.numsamples);
 		}
 		else if(myoption.task==6)
 		{

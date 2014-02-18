@@ -78,7 +78,7 @@ ProcessProfile<Option>::getOption(Option& myoption)
 	{
 		mystr.append(myfolder);
 		mystr.append(myoption.speciesfiles[i]);
-		mystr.append("-int.txt");
+		mystr.append(".txt");
 		myoption.networkfiles.push_back(mystr);
 		mystr.clear();
 	}
