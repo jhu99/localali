@@ -1,5 +1,5 @@
-folder ./dataset/dip/test/
-resultfolder ./result/test/3-way/localali/
+folder ../crosslink/dataset/intact10022014/test/
+resultfolder ../crosslink/result/test/3-way/localali/
 species test1
 species test2
 species test3

@@ -59,7 +59,7 @@ public:
     unsigned _numSpecies;
     unsigned _seedSize;
     int _seedTries;
-    int _numSamples;
+    int _numSeeds;
 	int _minExt;
 	int _maxExt;
     int _numExtension;
@@ -218,7 +218,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
 	_seedTries=myoption.seedtries;
-	_numSamples=myoption.numsamples;
+	_numSeeds=myoption.numseeds;
 	_numConnected=myoption.numconnected;
 	_numExtension=myoption.minext;
 	_minExt=myoption.minext;
@@ -810,7 +810,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	//std::cout <<"Seeds tries: " << _seedTries <<std::endl;
 	//std::cout << "Min subnet:" << _seedSize+_minExt << std::endl;
 	//std::cout << "Max subnet:" << _seedSize+_maxExt << std::endl;
-	MyTree localtree;
+	/*MyTree localtree;
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 	std::vector<SubNet*> mySubNetList;
 	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize,mySubNetList) firstprivate(myPrivateVariable)
@@ -863,6 +863,8 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	}
 	//std::cout << "Threshold: " << _score_threshold << std::endl;
 	//std::cout << "Alignments: " << outnum << std::endl;
+	 *
+	 */
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -1087,7 +1089,7 @@ Search<NP,SN,LG,OP>::searchSeeds(LayerGraph& layergraph,NetworkPool& networks)
 	verifyspine(layergraph,networks);
 	std::uniform_int_distribution<int> discrete(0,layergraph.validnodes.size()-1);
 	int num=0;
-	while(num++<_numSamples)
+	while(num++<_numSeeds)
 	{
 		SubNet* mysubnet= new SubNet(_numSpecies,_seedSize);
 	 if(!sampleSeed(mysubnet,layergraph,networks,discrete))
@@ -1110,7 +1112,7 @@ Search<NP,SN,LG,OP>::searchSeedsParallel(LayerGraph& layergraph, NetworkPool& ne
 	verifyspineParallel(layergraph, networks);
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks) firstprivate(myPrivateVariable)
-	for(int i=0; i<_numSamples;i++)
+	for(int i=0; i<_numSeeds;i++)
 	{
 		//myPrivateVariablePlus.clear();
 		myPrivateVariable.mysubnet=new SubNet(_numSpecies,_seedSize);// used local variable i, mysubnet 
@@ -1125,6 +1127,7 @@ Search<NP,SN,LG,OP>::searchSeedsParallel(LayerGraph& layergraph, NetworkPool& ne
 				refinedSeeds.push_back(myPrivateVariable.mysubnet);
 			}
 		}
+		i=refinedSeeds.size();
 	}
 }
 

@@ -27,7 +27,7 @@ localali: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
 	${CXX} ${CXXFLAGS} -o $@ $^ 
 
 move:
-	mv localali ./bin/
+	mv localali ../crosslink/bin/localali
 
 #lemon: lemon-config lemon-make
 
@@ -38,4 +38,4 @@ move:
 #$(LEMON)/make	
 
 clean:
-	rm ./bin/localali
+	rm ../crosslink/bin/localali

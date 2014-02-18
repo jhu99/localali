@@ -18,7 +18,9 @@ class Format
   ~Format(){};
 	std::string fromatfilename;
 	void extractInteractions();
+	void extractIntActInteractions();
 	void extractHomology();
+	void extractIntActHomology(NetworksType& networks);
 	void extractDatasetHomology(NetworksType& networks);
 	void extractDipAc(NetworksType& networks);
 	void writeAlignmentFile(std::string,std::string);// usefulless
@@ -82,6 +84,60 @@ void Format<NetworksType,MyOption>::extractInteractions()
 }
 
 template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::extractIntActInteractions()
+{
+	std::string filename1,filename2;
+	std::vector<std::string> filelist;			
+	filelist.push_back("1-human9606");			filelist.push_back("2-worm6239");			filelist.push_back("3-fly7227");			filelist.push_back("4-yeast4932");
+	filelist.push_back("5-rat10116");			filelist.push_back("6-mouse10090");			filelist.push_back("7-ecoli562");
+	for(unsigned i=0; i<filelist.size(); ++i)
+	{
+		std::unordered_map<std::string,int> interactionmap;
+		filename1.clear();
+		filename1.append("./dataset/rawdata/10022014/");
+		filename1.append(filelist[i]);
+		filename1.append(".txt.si");
+		filename2.clear();
+		filename2.append("./dataset/rawdata/10022014/");
+		filename2.append(filelist[i]);
+		filename2.append(".txt.si1");
+		std::ifstream input(filename1.c_str());
+		std::ofstream output(filename2.c_str());
+		std::string line;
+		if(!input.is_open())
+		{
+			std::cerr << "Cannot open " <<filename1 <<"!" << std::endl;
+		}
+		int numedge=0;
+		while (std::getline(input,line))
+		{
+			std::string protein1,protein2,tempstr,keystr;
+			std::stringstream streamline(line);
+			streamline >> protein1 >> protein2;
+			if(protein1.compare(protein2)==0)
+				continue;
+			else if(protein1.compare(protein2)>0)
+		     {
+				 tempstr = protein1;
+				 protein1 = protein2;
+				 protein2 = tempstr;
+			 }
+			 keystr.append(protein1);
+			 keystr.append(protein2);
+			 if(interactionmap.find(keystr)==interactionmap.end())
+			 {
+				output << line << std::endl;
+				interactionmap[keystr]=1;
+				numedge++;
+			 }
+		}
+		std::cout << "network " << i <<" : " <<numedge << std::endl;
+		input.close();
+		output.close();
+	}
+}
+
+template<typename NetworksType,typename MyOption>
 void Format<NetworksType,MyOption>::extractHomology()
 {
 	std::string filename1,filename2,filename3;
@@ -109,6 +165,64 @@ void Format<NetworksType,MyOption>::extractHomology()
 	}
 	output1.close();
 	output2.close();
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::extractIntActHomology(NetworksType& networks)
+{
+	std::string filename1,filename2,filename3,filename4,line,protein1,protein2;
+	float bscore;
+	double evalue;
+	std::vector<std::string> filelist;			
+	filelist.push_back("1-human9606");			filelist.push_back("2-worm6239");			filelist.push_back("3-fly7227");			filelist.push_back("4-yeast4932");
+	filelist.push_back("5-rat10116");			filelist.push_back("6-mouse10090");			filelist.push_back("7-ecoli562");
+	for(int i=0;i<7;i++)
+	{
+		for(int j=i;j<7;j++)
+		{
+			std::unordered_map<std::string,int> edgenum;
+			filename1.clear();filename1.append("./dataset/bldata/blastdata10022014/");filename1.append(filelist[i]);filename1.append("-");filename1.append(filelist[j]);filename1.append(".b6.data");
+			filename2.clear();filename2.append("./dataset/bldata/blastdata10022014/");filename2.append(filelist[i]);filename2.append("-");filename2.append(filelist[j]);filename2.append(".b6.data.si");
+			filename3.clear();filename3.append("./dataset/bldata/blastdata10022014/");filename3.append(filelist[i]);filename3.append("-");filename3.append(filelist[j]);filename3.append(".bscore");
+			filename4.clear();filename4.append("./dataset/bldata/blastdata10022014/");filename4.append(filelist[i]);filename4.append("-");filename4.append(filelist[j]);filename4.append(".evals");
+			std::ifstream input(filename1.c_str());
+			if(!input.is_open())
+			{
+				std::cerr <<"Can't open "<< filename1 <<"!"<<std::endl;
+				return;
+			}
+			std::ofstream output(filename2.c_str());
+			std::ofstream output1(filename3.c_str());
+			std::ofstream output2(filename4.c_str());
+			while(std::getline(input,line))
+			{
+				std::stringstream lineStream(line);
+			    lineStream >> protein1 >> protein2 >> bscore >>evalue;
+			    /// Proteins require to be available in PPI networks.
+			    if(!(networks.existNode(protein1) && networks.existNode(protein2)))
+			      continue;
+			    if(protein1.compare(protein2)==0)continue;
+			    if(protein1.compare(protein2)>0)
+			    {
+					std::string temp=protein1;
+					protein1=protein2;
+					protein2=temp;
+				}
+				std::string edgelabel;
+				edgelabel.append(protein1);
+				edgelabel.append(protein2);
+				if(edgenum.find(edgelabel)!=edgenum.end())continue;
+				edgenum[edgelabel]=1;
+				output << line << std::endl;
+				output1 << protein1<<"\t"<<protein2<<"\t"<<bscore<<std::endl;
+				output2 << protein1<<"\t"<<protein2<<"\t"<<evalue<<std::endl;
+			}
+			input.close();
+			output.close();
+			output1.close();
+			output2.close();
+		}
+	}
 }
 
 template<typename NetworksType,typename MyOption>
