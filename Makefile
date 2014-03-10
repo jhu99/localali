@@ -21,13 +21,13 @@ else
 	CXXFLAGS = -Wall -O3 -ffast-math -fcaller-saves -finline-functions -fopenmp -std=c++0x -DNDEBUG -I$(LEMON)/ -Isrc/
 endif
 
-all: localali move
+all: localalitmp move
 
-localali: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
+localalitmp: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
 	${CXX} ${CXXFLAGS} -o $@ $^ 
 
 move:
-	mv localali ../crosslink/bin/localali
+	mv localalitmp localali
 
 #lemon: lemon-config lemon-make
 
@@ -38,4 +38,4 @@ move:
 #$(LEMON)/make	
 
 clean:
-	rm ../crosslink/bin/localali
+	rm localali

@@ -1,4 +1,4 @@
-folder ./dataset/intact10022014/7-way/
+folder ../crosslink/dataset/intact10022014/7-way/
 species 1-human9606
 species 2-worm6239
 species 3-fly7227

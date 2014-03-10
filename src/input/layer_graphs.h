@@ -78,7 +78,7 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
   std::ifstream input(filename.c_str());
   if(!input.good())
   {
-    std::cerr << filename <<" cannot be opened!"<<std::endl;
+    std::cerr <<"# Can't open "<< filename <<"!"<<std::endl;
     return 0;
   }
   std::string line;
@@ -135,11 +135,11 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
     edgenum[edgelabel]=1;
     edgeNum++;
   }
-  if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+  if(g_verbosity>=VERBOSE_ESSENTIAL)
   {
-	std::cerr <<filename <<" has been read successfully!"<<std::endl;
-	std::cerr <<"# of proteins:"<< nodeNum<<"\t"<<std::endl;
-	std::cerr <<"# of interactions:"<< edgeNum <<std::endl;
+	std::cout <<"# "<<filename <<" has been read successfully!"<<std::endl;
+	std::cout <<"# of proteins:"<< nodeNum<<"\t"<<std::endl;
+	std::cout <<"# of interactions:"<< edgeNum <<std::endl;
   }
   return true;
 }

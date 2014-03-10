@@ -9,6 +9,7 @@ Description: Searching high-scoring subnetworks.
 #define SEARCH_H_
 
 #include <vector>
+#include <stack>
 #include <fstream>
 #include <iostream>
 #include <algorithm>
@@ -17,6 +18,7 @@ Description: Searching high-scoring subnetworks.
 #include <lemon/list_graph.h>
 #include <lemon/smart_graph.h>
 #include <lemon/connectivity.h>
+#include <lemon/bfs.h>
 #include "verbose.h"
 #include "input/tree.h"
 #include "algorithm/phylogeny.h"
@@ -35,6 +37,8 @@ public:
 	typedef SN SubNet;
 	typedef LG LayerGraph;
 	typedef OP Option;
+	typedef lemon::Bfs< typename NetworkPool::Graph > BfsType;
+	typedef typename NetworkPool::GraphData NGraphData;
 	typedef typename LayerGraph::Graph Graph;
 	TEMPLATE_GRAPH_TYPEDEFS(Graph);
 	typedef typename SubNet::K_Spine K_Spine;
@@ -48,7 +52,6 @@ public:
 	typedef typename MatchingNodeMap::iterator MatchingNodeMapIt;
 	typedef typename Graph::template EdgeMap<Score> ScoreEdgeMap;
 	typedef typename Graph::template EdgeMap<MatchingNodeMap*> MatchingEdgeMap;
-  
 	
   /// Labels of the nodes.
   typedef typename Graph::template NodeMap<std::string> OrigLabelNodeMap;
@@ -60,12 +63,16 @@ public:
     unsigned _seedSize;
     int _seedTries;
     int _numSeeds;
+    int _numValidNodes;
 	int _minExt;
 	int _maxExt;
     int _numExtension;
     int _numConnected;
     int _numthreads;
+    int _numSpinetries;//numspinetries
     double _score_threshold;
+    double _alpha;
+    double _beta;
 	std::string _resultfolder;
 	std::string _treefile;
 	std::vector<std::string> _speciesfiles;
@@ -73,6 +80,7 @@ public:
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
     typename std::vector<SubNet*> refinedSeeds;
+    omp_lock_t myLock;
 
     typedef struct _PrivateVariable
 		{
@@ -89,21 +97,32 @@ public:
 		int numConnected;
 		int nodeid;
 		int neighborid;
-		int dice_roll;
+		int dice_roll,dice_roll_e;
 		int sk;
+		bool indicator;
 		std::string protein,element,protein1,protein2;
-		std::vector<Node> m_candidates;
+		std::vector<Node> m_candidates,transient_candidates;
 		std::vector<Node> candidates;
 		std::vector<Node> secondCandidates;//V'extention
 		std::vector<Node> exclCandidates;//ExclCandidates  V'UN(V')
 		std::unordered_map<int,bool> usedValidNodes;
+		std::unordered_map<std::string,bool> secondaryNeighbors;
 		std::vector<std::string> innerproteins;
-	  std::vector<std::string> neighborproteins;
+		std::vector<std::string> neighborproteins;
 		std::vector<std::string> nodeset,xspine;
-	  std::uniform_int_distribution<int> discrete;
+		std::uniform_int_distribution<int> discrete;
+		BfsType *myBfs;
+		/*typename BfsType::PredMap *mypredmap;
+		typename BfsType::DistMap *mydistmap;
+		typename BfsType::ReachedMap *myreachedmap;
+		typename BfsType::ProcessedMap *myprocessedmap;*/
+		std::vector<BfsType*> bfsList;
 		GraphData *graphdata;
+		NGraphData *gd;
 		Node neighbor,firstnode,node,rnode,wnode,spinenode,node1,node2;
-		K_Spine pspine, spine, newspine;
+		K_Spine pspine, spine, newspine,transient_spine;
+		std::stack<K_Spine> LIFO_transient_spine;
+		std::stack<std::vector<Node> > LIFO_transient_candidates;
 		IncEdgeIt inc;
 		std::default_random_engine generator;
 		typename std::vector<Node>::iterator it;
@@ -120,7 +139,7 @@ public:
 			std::default_random_engine generator;
 			std::uniform_real_distribution<float> distribution;
 			unsigned seed,si,sj,sk,st,mykey,id1,id2,numElement,maxdegree,conNum,dice_roll,upperId,dice_1,dice_2;
-			int degree1,degree2;
+			int degree1,degree2,outnum;
 			SubNet *subnet;
 			GraphData *graphdata, *sondata, *descedant, *ancestor;
 			Node node,node1,node2,node3,node4,rnode,anode,dnode,firstnode;
@@ -159,6 +178,13 @@ public:
 				generator(std::chrono::system_clock::now().time_since_epoch().count()),distribution(0.0,1.0),simulatedannealing(),deltaData()
 			{
 			}
+			_PrivateVariablePlus(_PrivateVariablePlus& copyVariable)
+			{
+				generator=copyVariable.generator;
+				distribution=copyVariable.distribution;
+				simulatedannealing=copyVariable.simulatedannealing;
+				deltaData=copyVariable.deltaData;
+			}
 			void clear()
 			{
 				step=0;beta=0;sampledata=0;sumDist=0;overallScore=0;
@@ -180,21 +206,27 @@ public:
 	bool sampleKSpineParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool sampleKSpine(Node&,K_Spine&,LayerGraph&,NetworkPool&);
 	bool expandspineParallel(PrivateVariable&, K_Spine spine, std::vector<Node> candidates, LayerGraph&,NetworkPool&);
+	bool expandspineParallel_1(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool expandspine(K_Spine,K_Spine&,std::vector<Node>,Node,LayerGraph&,NetworkPool&,unsigned);
 	void verifyspine(LayerGraph&,NetworkPool&);
 	void verifyspineParallel(LayerGraph&,NetworkPool&);
 	bool checkConnection(SubNet*,LayerGraph&,NetworkPool&);
 	bool checkConnectionParallel(PrivateVariable&,LayerGraph&,NetworkPool&);
-	void expandRefinedSeeds(PrivateVariable&,LayerGraph&,NetworkPool&);
+	bool expandRefinedSeeds(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool heuristicSearch(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool induceSubgraphs(PrivateVariablePlus&,LayerGraph&,NetworkPool&);
 	bool induceSubgraphsPrivateVar(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool initialPhylogy(PrivateVariablePlus&,LayerGraph&, const MyTree&);
 	bool initialExternalNodes(PrivateVariablePlus&, const MyTree&);
+	bool isStronglyConnected(PrivateVariable&,LayerGraph&,NetworkPool&);
+	bool isStronglyConnected_1(PrivateVariable&,LayerGraph&,NetworkPool&);
+	bool isStronglyConnected_2(PrivateVariable&,LayerGraph&,NetworkPool&);
+	bool isStronglyConnected_3(PrivateVariable&,LayerGraph&,NetworkPool&);
 	bool existNode(PrivateVariablePlus&);
 	bool initialBranchWeight(PrivateVariablePlus&,const MyTree&);
 	bool computeBranchWeight(PrivateVariablePlus&,const MyTree&);
 	bool computeScore(PrivateVariablePlus&,const MyTree&);
+	bool computeExpScore(PrivateVariablePlus&,const MyTree&);
 	void computeDist(PrivateVariablePlus&,const MyTree&);
 	bool clearScore(PrivateVariablePlus&);
 	bool clearStructure(PrivateVariablePlus&,const MyTree&);
@@ -207,6 +239,9 @@ public:
 	void formEdgeLabel(PrivateVariablePlus&);
 	void outsubgraphs(LayerGraph&,PrivateVariablePlus&,std::ofstream& fout);
 	void output(LayerGraph&,PrivateVariablePlus&,std::ofstream& fout);
+	void output(LayerGraph&,PrivateVariable&);
+	//void outputNode(LayerGraph&,std::vector<Node>&);
+	//void outputString(LayerGraph&,std::vector<std::string>&);
 };
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -214,6 +249,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 :generator(std::chrono::system_clock::now().time_since_epoch().count())
 ,distribution(0,10000)
 ,refinedSeeds()
+,myLock()
 {
 	_numSpecies=myoption.numspecies;
 	_seedSize=myoption.seedsize;
@@ -228,6 +264,9 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_treefile=myoption.treefile;
 	_speciesfiles=myoption.speciesfiles;
 	_score_threshold=myoption.score_threshold;
+	_numSpinetries=myoption.numspinetries;
+	_alpha=myoption.alpha;
+	_beta=myoption.beta;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -262,8 +301,10 @@ Search<NP,SN,LG,OP>::initialExternalNodes(PrivateVariablePlus& myPrivateVariable
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<_speciesfiles.size();myPrivateVariablePlus.si++)
 	{
 		myPrivateVariablePlus.element=_speciesfiles[myPrivateVariablePlus.si];
+		omp_set_lock(&myLock);
 		myPrivateVariablePlus.node=localtree.label2node.find(myPrivateVariablePlus.element)->second;
 		myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.node)]=myPrivateVariablePlus.subnet->subgraphs[myPrivateVariablePlus.si];
+		omp_unset_lock(&myLock);
 		myPrivateVariablePlus.phylogeny.externalNode.push_back(myPrivateVariablePlus.node);
 	}
 	return true;
@@ -275,7 +316,14 @@ Search<NP,SN,LG,OP>::existNode(PrivateVariablePlus& myPrivateVariablePlus)
 {
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.xspine.size();myPrivateVariablePlus.si++)
 	{
+		myPrivateVariablePlus.finderFlag=false;
+		omp_set_lock(&myLock);
 		if(myPrivateVariablePlus.graphdata->label2node->find(myPrivateVariablePlus.xspine[myPrivateVariablePlus.si])!=myPrivateVariablePlus.graphdata->label2node->end())
+		{
+			myPrivateVariablePlus.finderFlag=true;
+		}
+		omp_unset_lock(&myLock);
+		if(myPrivateVariablePlus.finderFlag)
 			return true;
 	}
 	return false;
@@ -285,8 +333,10 @@ template<typename NP, typename SN, typename LG, typename OP>
 typename Search<NP,SN,LG,OP>::GraphData*
 Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& myPrivateVariablePlus,LayerGraph& layergraph,const MyTree& localtree)
 {
+	omp_set_lock(&myLock);
 	myPrivateVariablePlus.graphdata=new GraphData();
 	myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(ancestor)]=myPrivateVariablePlus.graphdata;
+	omp_unset_lock(&myLock);
 	for(myPrivateVariablePlus.incE=IncEdgeIt(localtree.g,ancestor);myPrivateVariablePlus.incE!=lemon::INVALID;++myPrivateVariablePlus.incE)
 	{
 		myPrivateVariablePlus.rnode=localtree.g.runningNode(myPrivateVariablePlus.incE);
@@ -297,7 +347,14 @@ Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& 
 			continue;
 		}
 		//sonnodes.push_back(myPrivateVariablePlus.rnode);
+		myPrivateVariablePlus.finderFlag=true;
+		omp_set_lock(&myLock);
 		if(myPrivateVariablePlus.phylogeny.node2graph.find(localtree.g.id(myPrivateVariablePlus.rnode))==myPrivateVariablePlus.phylogeny.node2graph.end())
+		{
+			myPrivateVariablePlus.finderFlag=false;
+		}
+		omp_unset_lock(&myLock);
+		if(!myPrivateVariablePlus.finderFlag)
 		{
 			myPrivateVariablePlus.processnode.push_back(myPrivateVariablePlus.rnode);
 			myPrivateVariablePlus.sondata=constructInternalNodes(myPrivateVariablePlus.rnode,myPrivateVariablePlus,layergraph,localtree);
@@ -305,9 +362,13 @@ Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& 
 			myPrivateVariablePlus.processnode.pop_back();
 			myPrivateVariablePlus.phylogeny.internalNode.push_back(myPrivateVariablePlus.rnode);
 		}else{
-			myPrivateVariablePlus.sondata=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.rnode)];
+			omp_set_lock(&myLock);
+			myPrivateVariablePlus.sondata = myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.rnode)];
+			omp_unset_lock(&myLock);
 		}
+		omp_set_lock(&myLock);
 		myPrivateVariablePlus.graphdata=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(ancestor)];
+		omp_unset_lock(&myLock);
 		myPrivateVariablePlus.incE=myPrivateVariablePlus.processinc.back();
 		myPrivateVariablePlus.processinc.pop_back();
 		for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.sondata->offsprings.size();++myPrivateVariablePlus.si)
@@ -337,7 +398,9 @@ Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& 
 		myPrivateVariablePlus.graphdata->node2degree->set(myPrivateVariablePlus.node,0);
 		for(myPrivateVariablePlus.it=myPrivateVariablePlus.xspine.begin();myPrivateVariablePlus.it!=myPrivateVariablePlus.xspine.end();++myPrivateVariablePlus.it)
 		{
+			omp_set_lock(&myLock);
 			(*myPrivateVariablePlus.graphdata->label2node)[*myPrivateVariablePlus.it]=myPrivateVariablePlus.node;
+			omp_unset_lock(&myLock);
 			///There are many labels for each internal node.
 		}
 		myPrivateVariablePlus.sit=myPrivateVariablePlus.incSpines.begin();
@@ -351,7 +414,9 @@ Search<NP,SN,LG,OP>::constructInternalNodes(Node ancestor, PrivateVariablePlus& 
 				}
 				for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<myPrivateVariablePlus.xspine.size();myPrivateVariablePlus.si++)
 				{
+					omp_set_lock(&myLock);
 					(*myPrivateVariablePlus.graphdata->label2node)[myPrivateVariablePlus.xspine[myPrivateVariablePlus.si]]=myPrivateVariablePlus.node;
+					omp_unset_lock(&myLock);
 				}
 				myPrivateVariablePlus.incSpines.erase(myPrivateVariablePlus.sit);
 				myPrivateVariablePlus.sit=myPrivateVariablePlus.incSpines.begin();
@@ -364,11 +429,14 @@ template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::computeBranchWeight(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree)
 {
+	omp_set_lock(&myLock);
 	myPrivateVariablePlus.matchingmap = new MatchingNodeMap();
+	omp_unset_lock(&myLock);
 	myPrivateVariablePlus.node1=localtree.g.u(myPrivateVariablePlus.ie);
 	myPrivateVariablePlus.id1=localtree.g.id(myPrivateVariablePlus.node1);
 	myPrivateVariablePlus.node2=localtree.g.v(myPrivateVariablePlus.ie);
 	myPrivateVariablePlus.id2=localtree.g.id(myPrivateVariablePlus.node2);
+	omp_set_lock(&myLock);
 	if(myPrivateVariablePlus.node2<myPrivateVariablePlus.node1)
 	{
 		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id2];
@@ -379,24 +447,31 @@ Search<NP,SN,LG,OP>::computeBranchWeight(PrivateVariablePlus& myPrivateVariableP
 		myPrivateVariablePlus.descedant=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id1];
 		myPrivateVariablePlus.ancestor=myPrivateVariablePlus.phylogeny.node2graph[myPrivateVariablePlus.id2];
 	}
+	omp_unset_lock(&myLock);
 	
 	for( myPrivateVariablePlus.cit=myPrivateVariablePlus.descedant->label2node->begin();myPrivateVariablePlus.cit!=myPrivateVariablePlus.descedant->label2node->end();++myPrivateVariablePlus.cit)
 	{
 	    myPrivateVariablePlus.protein=myPrivateVariablePlus.cit->first;
-			myPrivateVariablePlus.dnode=myPrivateVariablePlus.cit->second;
+		myPrivateVariablePlus.dnode=myPrivateVariablePlus.cit->second;
+		omp_set_lock(&myLock);
 	  	myPrivateVariablePlus.anode=(*myPrivateVariablePlus.ancestor->label2node)[myPrivateVariablePlus.protein];
 	  	myPrivateVariablePlus.mykey=myPrivateVariablePlus.ancestor->g->id(myPrivateVariablePlus.anode);
 	  	myPrivateVariablePlus.range=myPrivateVariablePlus.matchingmap->equal_range(myPrivateVariablePlus.mykey);
+	  	omp_unset_lock(&myLock);
 	  	myPrivateVariablePlus.isExist=false;
-			for(myPrivateVariablePlus.mit=myPrivateVariablePlus.range.first;myPrivateVariablePlus.mit!=myPrivateVariablePlus.range.second;++myPrivateVariablePlus.mit)
-			{
-				if(myPrivateVariablePlus.mit->second==myPrivateVariablePlus.dnode){myPrivateVariablePlus.isExist=true;break;}
-			}
-			if(myPrivateVariablePlus.isExist)continue;
-		  myPrivateVariablePlus.matchingmap->insert(std::make_pair(myPrivateVariablePlus.mykey,myPrivateVariablePlus.dnode));// A general error may look like: std::make_pair<int, Node>(mykey,myPrivateVariablePlus.dnode)
+		for(myPrivateVariablePlus.mit=myPrivateVariablePlus.range.first;myPrivateVariablePlus.mit!=myPrivateVariablePlus.range.second;++myPrivateVariablePlus.mit)
+		{
+			if(myPrivateVariablePlus.mit->second==myPrivateVariablePlus.dnode){myPrivateVariablePlus.isExist=true;break;}
+		}
+		if(myPrivateVariablePlus.isExist)continue;
+		omp_set_lock(&myLock);
+		myPrivateVariablePlus.matchingmap->insert(std::make_pair(myPrivateVariablePlus.mykey,myPrivateVariablePlus.dnode));
+		omp_unset_lock(&myLock);
 	}
-	myPrivateVariablePlus.matchingedgemap->set(myPrivateVariablePlus.ie,myPrivateVariablePlus.matchingmap);//[myPrivateVariablePlus.myedge]=myPrivateVariablePlus.matchingmap;
-	computeScore(myPrivateVariablePlus,localtree);
+	omp_set_lock(&myLock);
+	myPrivateVariablePlus.matchingedgemap->set(myPrivateVariablePlus.ie,myPrivateVariablePlus.matchingmap);
+	omp_unset_lock(&myLock);
+	computeExpScore(myPrivateVariablePlus,localtree);
 	return true;
 }
 
@@ -460,6 +535,69 @@ Search<NP,SN,LG,OP>::computeScore(PrivateVariablePlus& myPrivateVariablePlus,con
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
+Search<NP,SN,LG,OP>::computeExpScore(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree)
+{
+	omp_set_lock(&myLock);
+	myPrivateVariablePlus.branchweight=localtree.branchmap[myPrivateVariablePlus.ie];
+	omp_unset_lock(&myLock);
+	myPrivateVariablePlus.score.fscore.fill(0.0);
+	for(myPrivateVariablePlus.nit1=NodeIt(*myPrivateVariablePlus.ancestor->g);myPrivateVariablePlus.nit1!=lemon::INVALID;++myPrivateVariablePlus.nit1)
+	{
+		myPrivateVariablePlus.mykey=myPrivateVariablePlus.ancestor->g->id(myPrivateVariablePlus.nit1);
+		omp_set_lock(&myLock);
+		myPrivateVariablePlus.numElement=myPrivateVariablePlus.matchingmap->count(myPrivateVariablePlus.mykey);
+		if(myPrivateVariablePlus.numElement==1)
+		/// Protein mutation.
+		{
+			myPrivateVariablePlus.score.fscore[0]+=exp((-1)*_alpha*(*myPrivateVariablePlus.ancestor->node2degree)[myPrivateVariablePlus.nit1])*myPrivateVariablePlus.branchweight;
+		}else
+		/// Protein duplication.
+		{
+			myPrivateVariablePlus.score.fscore[1]+=exp((-1)*_alpha*(*myPrivateVariablePlus.ancestor->node2degree)[myPrivateVariablePlus.nit1])*myPrivateVariablePlus.branchweight;
+		}
+		omp_unset_lock(&myLock);
+	}
+	/// The number of conserved edges.
+	myPrivateVariablePlus.conNum=0;
+	for(myPrivateVariablePlus.ie1=EdgeIt(*myPrivateVariablePlus.ancestor->g);myPrivateVariablePlus.ie1!=lemon::INVALID;++myPrivateVariablePlus.ie1)
+	{
+		myPrivateVariablePlus.finderFlag=false;
+		myPrivateVariablePlus.node1=myPrivateVariablePlus.ancestor->g->u(myPrivateVariablePlus.ie1);
+		myPrivateVariablePlus.node2=myPrivateVariablePlus.ancestor->g->v(myPrivateVariablePlus.ie1);
+		myPrivateVariablePlus.id1=myPrivateVariablePlus.ancestor->g->id(myPrivateVariablePlus.node1);
+		myPrivateVariablePlus.id2=myPrivateVariablePlus.ancestor->g->id(myPrivateVariablePlus.node2);
+		omp_set_lock(&myLock);
+		myPrivateVariablePlus.range1=myPrivateVariablePlus.matchingmap->equal_range(myPrivateVariablePlus.id1);
+		myPrivateVariablePlus.range2=myPrivateVariablePlus.matchingmap->equal_range(myPrivateVariablePlus.id2);
+		omp_unset_lock(&myLock);
+		for(myPrivateVariablePlus.mit1=myPrivateVariablePlus.range1.first;myPrivateVariablePlus.mit1!=myPrivateVariablePlus.range1.second;++myPrivateVariablePlus.mit1)
+		{
+			myPrivateVariablePlus.node1=myPrivateVariablePlus.mit1->second;
+			for(myPrivateVariablePlus.mit2=myPrivateVariablePlus.range2.first;myPrivateVariablePlus.mit2!=myPrivateVariablePlus.range2.second;++myPrivateVariablePlus.mit2)
+			{
+				myPrivateVariablePlus.node2=myPrivateVariablePlus.mit2->second;
+				formEdgeLabel(myPrivateVariablePlus);
+				omp_set_lock(&myLock);
+				if(myPrivateVariablePlus.descedant->label2edge->find(myPrivateVariablePlus.edgelabel)!=myPrivateVariablePlus.descedant->label2edge->end())
+				{
+					myPrivateVariablePlus.conNum++;
+					myPrivateVariablePlus.finderFlag=true;
+				}
+				omp_unset_lock(&myLock);
+				if(myPrivateVariablePlus.finderFlag)break;
+			}
+			if(myPrivateVariablePlus.finderFlag)break;
+		}
+	}
+	// Interaction deletion.
+	myPrivateVariablePlus.score.fscore[2]=exp((-1)*_alpha*_beta)*myPrivateVariablePlus.branchweight*(myPrivateVariablePlus.ancestor->edgeNum-myPrivateVariablePlus.conNum);
+	// Interaction insertion.
+	myPrivateVariablePlus.score.fscore[3]=exp((-1)*_alpha*_beta)*myPrivateVariablePlus.branchweight*(myPrivateVariablePlus.descedant->edgeNum-myPrivateVariablePlus.conNum);
+	return true;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+bool
 Search<NP,SN,LG,OP>::initialBranchWeight(PrivateVariablePlus& myPrivateVariablePlus,const MyTree& localtree)
 {
 	for(myPrivateVariablePlus.ie=EdgeIt(localtree.g);myPrivateVariablePlus.ie!=lemon::INVALID;++myPrivateVariablePlus.ie)
@@ -495,7 +633,9 @@ Search<NP,SN,LG,OP>::deleteEdge(PrivateVariablePlus& myPrivateVariablePlus)
 	myPrivateVariablePlus.degree2=(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2]--;
 	myPrivateVariablePlus.graphdata->edgeNum--;
 	myPrivateVariablePlus.graphdata->g->erase(myPrivateVariablePlus.myedge);
+	omp_set_lock(&myLock);
 	myPrivateVariablePlus.graphdata->label2edge->erase(myPrivateVariablePlus.edgelabel);
+	omp_unset_lock(&myLock);
 	if(myPrivateVariablePlus.degree1==myPrivateVariablePlus.graphdata->maxDegree || myPrivateVariablePlus.degree2==myPrivateVariablePlus.graphdata->maxDegree)
 	{
 		myPrivateVariablePlus.graphdata->maxDegree--;
@@ -526,13 +666,17 @@ template<typename NP, typename SN, typename LG, typename OP>
 void 
 Search<NP,SN,LG,OP>::addEdge(PrivateVariablePlus& myPrivateVariablePlus)
 {
+	omp_set_lock(&myLock);
 	myPrivateVariablePlus.degree1=++(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node1];
 	myPrivateVariablePlus.degree2=++(*myPrivateVariablePlus.graphdata->node2degree)[myPrivateVariablePlus.node2];
+	omp_unset_lock(&myLock);
 	myPrivateVariablePlus.graphdata->edgeNum++;
 	myPrivateVariablePlus.myedge=myPrivateVariablePlus.graphdata->g->addEdge(myPrivateVariablePlus.node1,myPrivateVariablePlus.node2);
 	if(myPrivateVariablePlus.degree1>myPrivateVariablePlus.graphdata->maxDegree || myPrivateVariablePlus.degree2>myPrivateVariablePlus.graphdata->maxDegree)myPrivateVariablePlus.graphdata->maxDegree++;
 	formEdgeLabel(myPrivateVariablePlus);
+	omp_set_lock(&myLock);
 	(*myPrivateVariablePlus.graphdata->label2edge)[myPrivateVariablePlus.edgelabel]=myPrivateVariablePlus.myedge;
+	omp_unset_lock(&myLock);
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -541,7 +685,9 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 {
 	myPrivateVariablePlus.dice_roll=myPrivateVariablePlus.phylogeny.distribution(generator)%myPrivateVariablePlus.phylogeny.internalNode.size();
 	myPrivateVariablePlus.node = myPrivateVariablePlus.phylogeny.internalNode[myPrivateVariablePlus.dice_roll];
+	omp_set_lock(&myLock);
 	myPrivateVariablePlus.graphdata=myPrivateVariablePlus.phylogeny.node2graph[localtree.g.id(myPrivateVariablePlus.node)];
+	omp_unset_lock(&myLock);
 	myPrivateVariablePlus.upperId=myPrivateVariablePlus.graphdata->nodeNum;
 	if(myPrivateVariablePlus.upperId<2) return false;
 	myPrivateVariablePlus.dice_1 = myPrivateVariablePlus.phylogeny.distribution(generator)%myPrivateVariablePlus.upperId;
@@ -557,10 +703,19 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 	myPrivateVariablePlus.deltaData.nodeA=myPrivateVariablePlus.node1;
 	myPrivateVariablePlus.deltaData.nodeB=myPrivateVariablePlus.node2;
 	myPrivateVariablePlus.deltaData.edgelabel=myPrivateVariablePlus.edgelabel;
+	myPrivateVariablePlus.finderFlag=false;
+	omp_set_lock(&myLock);
 	if(myPrivateVariablePlus.graphdata->label2edge->find(myPrivateVariablePlus.edgelabel)!=myPrivateVariablePlus.graphdata->label2edge->end())// label2edge empty?
 	{
+		myPrivateVariablePlus.finderFlag=true;
+	}
+	omp_unset_lock(&myLock);
+	if(myPrivateVariablePlus.finderFlag)
+	{
 		////delete edge
+		omp_set_lock(&myLock);
 		myPrivateVariablePlus.myedge=myPrivateVariablePlus.graphdata->label2edge->find(myPrivateVariablePlus.edgelabel)->second;
+		omp_unset_lock(&myLock);
 		deleteEdge(myPrivateVariablePlus);
 	}
 	else{
@@ -593,8 +748,10 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.rnode)));
 			myPrivateVariablePlus.edgelabel.append(convert_num2str(localtree.g.id(myPrivateVariablePlus.node)));
 		}
+		omp_set_lock(&myLock);
 		myPrivateVariablePlus.ie=localtree.label2edge.at(myPrivateVariablePlus.edgelabel);
-		computeScore(myPrivateVariablePlus,localtree);
+		omp_unset_lock(&myLock);
+		computeExpScore(myPrivateVariablePlus,localtree);
 		
 		myPrivateVariablePlus.deltaScore+=myPrivateVariablePlus.score;
 		myPrivateVariablePlus.deltaScore-=(*myPrivateVariablePlus.scoremap)[myPrivateVariablePlus.incE];
@@ -603,7 +760,7 @@ Search<NP,SN,LG,OP>::interfere(PrivateVariablePlus& myPrivateVariablePlus,const 
 	//myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.deltaScore.sumup();
 	sumupScore(myPrivateVariablePlus,myPrivateVariablePlus.deltaScore);
 	myPrivateVariablePlus.deltaData.delta=myPrivateVariablePlus.sumDist;
-	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	if(g_verbosity>=VERBOSE_DEBUG)
 	std::cout << myPrivateVariablePlus.deltaData.delta << std::endl;
 	return true;
 }
@@ -673,30 +830,41 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 	myPrivateVariablePlus.subnet->subgraphs.clear();
 	for(myPrivateVariablePlus.si=0;myPrivateVariablePlus.si<_numSpecies;++myPrivateVariablePlus.si)
 	{
+		omp_set_lock(&myLock);
 		myPrivateVariablePlus.graphdata = new GraphData();
+		omp_unset_lock(&myLock);
 		myPrivateVariablePlus.graphdata->offsprings.push_back(myPrivateVariablePlus.si);
 		myPrivateVariablePlus.nodeset.clear();
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.sj)
 		{
 			myPrivateVariablePlus.element=layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.sj].data[myPrivateVariablePlus.si]];
-			if(find(myPrivateVariablePlus.nodeset.begin(),myPrivateVariablePlus.nodeset.end(),myPrivateVariablePlus.element)!=myPrivateVariablePlus.nodeset.end())continue;
+			myPrivateVariablePlus.finderFlag=false;
+			omp_set_lock(&myLock);
+			if(find(myPrivateVariablePlus.nodeset.begin(),myPrivateVariablePlus.nodeset.end(),myPrivateVariablePlus.element)!=myPrivateVariablePlus.nodeset.end())myPrivateVariablePlus.finderFlag=true;
+			omp_unset_lock(&myLock);
+			if(myPrivateVariablePlus.finderFlag)continue;
 			myPrivateVariablePlus.nodeset.push_back(myPrivateVariablePlus.element);
 			myPrivateVariablePlus.node=myPrivateVariablePlus.graphdata->g->addNode();
 			myPrivateVariablePlus.graphdata->nodeNum++;
 			myPrivateVariablePlus.graphdata->node2label->set(myPrivateVariablePlus.node,myPrivateVariablePlus.element);
 			myPrivateVariablePlus.graphdata->node2degree->set(myPrivateVariablePlus.node,0);
+			omp_set_lock(&myLock);
 			(*myPrivateVariablePlus.graphdata->label2node)[myPrivateVariablePlus.element]=myPrivateVariablePlus.node;
-			//assert((*networks.getGraph(i)->invIdNodeMap).find(element)!=(*networks.getGraph(i)->invIdNodeMap).end());
+			omp_unset_lock(&myLock);
 		}
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<myPrivateVariablePlus.nodeset.size();myPrivateVariablePlus.sj++)
 		{
 			myPrivateVariablePlus.protein1=myPrivateVariablePlus.nodeset[myPrivateVariablePlus.sj];
+			omp_set_lock(&myLock);
 			myPrivateVariablePlus.node1=(*myPrivateVariablePlus.graphdata->label2node)[myPrivateVariablePlus.protein1];
+			omp_unset_lock(&myLock);
 			for(myPrivateVariablePlus.sk=myPrivateVariablePlus.sj+1;myPrivateVariablePlus.sk<myPrivateVariablePlus.nodeset.size();myPrivateVariablePlus.sk++)
 			{
 				myPrivateVariablePlus.protein2=myPrivateVariablePlus.nodeset[myPrivateVariablePlus.sk];
 				myPrivateVariablePlus.element.clear();
-			  myPrivateVariablePlus.node2=(*myPrivateVariablePlus.graphdata->label2node)[myPrivateVariablePlus.protein2];
+				omp_set_lock(&myLock);
+				myPrivateVariablePlus.node2=(*myPrivateVariablePlus.graphdata->label2node)[myPrivateVariablePlus.protein2];
+				omp_unset_lock(&myLock);
 				if(myPrivateVariablePlus.protein1.compare(myPrivateVariablePlus.protein2)>0)
 				{
 					myPrivateVariablePlus.element.append(myPrivateVariablePlus.protein2);
@@ -707,8 +875,11 @@ Search<NP,SN,LG,OP>::induceSubgraphs(PrivateVariablePlus& myPrivateVariablePlus,
 				 myPrivateVariablePlus.element.append(myPrivateVariablePlus.protein1);
 				 myPrivateVariablePlus.element.append(myPrivateVariablePlus.protein2);
 				}
-				 
-				if(networks.getGraph(myPrivateVariablePlus.si)->interactionmap.find(myPrivateVariablePlus.element)==networks.getGraph(myPrivateVariablePlus.si)->interactionmap.end())continue;
+				myPrivateVariablePlus.finderFlag=true;
+				omp_set_lock(&myLock);
+				if(networks.getGraph(myPrivateVariablePlus.si)->interactionmap.find(myPrivateVariablePlus.element)==networks.getGraph(myPrivateVariablePlus.si)->interactionmap.end())myPrivateVariablePlus.finderFlag=false;
+				omp_unset_lock(&myLock);
+				if(!myPrivateVariablePlus.finderFlag)continue;
 				 myPrivateVariablePlus.graphdata->g->addEdge(myPrivateVariablePlus.node1,myPrivateVariablePlus.node2);
 				 (*(myPrivateVariablePlus.graphdata->node2degree))[myPrivateVariablePlus.node1]++;
 				 (*(myPrivateVariablePlus.graphdata->node2degree))[myPrivateVariablePlus.node2]++;
@@ -746,7 +917,36 @@ void Search<NP, SN, LG, OP>::verifyspineParallel(LayerGraph& layergraph, Network
 			}
 		}
 	}
+	std::cerr << "# The process of searching for valid nodes has finished."<< std::endl;
 }
+
+template<typename NP, typename SN, typename LG, typename OP>
+void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariable& myPrivateVariable)
+{
+	if(g_verbosity>=VERBOSE_DEBUG)
+	{
+		omp_set_lock(&myLock);
+		for(myPrivateVariable.ej=0;myPrivateVariable.ej<myPrivateVariable.transient_candidates.size();++myPrivateVariable.ej)
+		{
+			std::cout << layergraph.node2label[myPrivateVariable.transient_candidates[myPrivateVariable.ej]]<<" ";
+		}
+		std::cout << std::endl;
+		omp_unset_lock(&myLock);
+	}
+}
+
+/*template<typename NP, typename SN, typename LG, typename OP>
+void Search<NP,SN,LG,OP>::outputNode(LayerGraph& layergraph,std::vector<Node>& nodeVector)
+{
+	if(g_verbosity>=VERBOSE_DEBUG)
+	{
+		for(myPrivateVariable.ej=0;myPrivateVariable.ej<myPrivateVariable.nodeVector.size();++myPrivateVariable.ej)
+		{
+			std::cout << layergraph.node2label[myPrivateVariable.nodeVector[myPrivateVariable.ej]]<<" ";
+		}
+		std::cout << std::endl;
+	}
+}*/
 
 template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
@@ -759,42 +959,33 @@ void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myP
 	fout.open(myPrivateVariablePlus.element.c_str());
 	outsubgraphs(layergraph,myPrivateVariablePlus,fout);
 	fout.close();
-	/*for(myPrivateVariablePlus.st=0;myPrivateVariablePlus.st<_numSpecies;++myPrivateVariablePlus.st)
-	{
-		myPrivateVariablePlus.element.clear();
-		myPrivateVariablePlus.element.append(_resultfolder);
-		myPrivateVariablePlus.element.append("species_");
-		myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.st));
-		myPrivateVariablePlus.element.append("/complex_");
-		myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.si));
-		myPrivateVariablePlus.element.append(".txt");
-		fout.open(myPrivateVariablePlus.element.c_str());
-		myPrivateVariablePlus.proteinmap.clear();
-		fout <<"# score: " << myPrivateVariablePlus.overallScore << "\n";
-		for(myPrivateVariablePlus.sk=0;myPrivateVariablePlus.sk<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.sk)
-		{
-			myPrivateVariablePlus.protein=layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.sk].data[myPrivateVariablePlus.st]];
-			if(myPrivateVariablePlus.proteinmap.find(myPrivateVariablePlus.protein)!=myPrivateVariablePlus.proteinmap.end())
-				continue;
-			else
-				myPrivateVariablePlus.proteinmap[myPrivateVariablePlus.protein]=true;
-			fout << myPrivateVariablePlus.protein <<"\n";
-		}
-		fout.close();
-	}*/
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
 	fout <<"# score: " << myPrivateVariablePlus.overallScore << "\n";
+	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	{
+		std::cout << myPrivateVariablePlus.outnum<<"\t"<<myPrivateVariablePlus.sumDist << "\t"
+				<<myPrivateVariablePlus.phylogeny._dsize << "\t" << _numSpecies << std::endl;
+	}
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	{
+		std::cout <<"# score: " << myPrivateVariablePlus.overallScore << std::endl;
+	}
+
 	for(myPrivateVariablePlus.st=0;myPrivateVariablePlus.st<myPrivateVariablePlus.subnet->net_spines.size();++myPrivateVariablePlus.st)
 	{
 		for(myPrivateVariablePlus.sj=0;myPrivateVariablePlus.sj<_numSpecies;++myPrivateVariablePlus.sj)
 		{
 			fout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.st].data[myPrivateVariablePlus.sj]]<<"\t";
+			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+				std::cout << layergraph.node2label[myPrivateVariablePlus.subnet->net_spines[myPrivateVariablePlus.st].data[myPrivateVariablePlus.sj]]<<"\t";
 		}
 		fout <<"\n";
+		if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+			std::cout << std::endl;
 	}
 }
 
@@ -802,51 +993,83 @@ template<typename NP, typename SN, typename LG, typename OP>
 void
 Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 {
+	omp_init_lock(&myLock);
 	searchSeedsParallel(layergraph,networks);
+	if(g_verbosity>=VERBOSE_NONE)
+	{
+		std::cerr <<"# The process of seeds detection has finished!" << std::endl;
+	}
 	int csize=refinedSeeds.size();
-	int outnum=0;
-	//std::cout <<"Seed size: " << _seedSize << std::endl;
-	//std::cout <<"Refind seeds: " << csize <<std::endl;
-	//std::cout <<"Seeds tries: " << _seedTries <<std::endl;
-	//std::cout << "Min subnet:" << _seedSize+_minExt << std::endl;
-	//std::cout << "Max subnet:" << _seedSize+_maxExt << std::endl;
-	/*MyTree localtree;
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	{
+		for(int i=0;i<csize;i++)
+		{
+			std::cout <<"Seed "<<i<<std::endl;
+			refinedSeeds[i]->output(layergraph);
+		}
+	}
+	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	{
+		std::cout <<"# Number of refined seeds:" << csize << std::endl;
+		std::cout <<"# Seed size: " << _seedSize << std::endl;
+		std::cout <<"# Seeds tries: " << _seedTries <<std::endl;
+		std::cout <<"# Min subnet:" << _seedSize+_minExt << std::endl;
+		std::cout <<"# Max subnet:" << _seedSize+_maxExt << std::endl;
+	}
+	MyTree localtree;
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
 	std::vector<SubNet*> mySubNetList;
 	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,csize,mySubNetList) firstprivate(myPrivateVariable)
 	for(int i=0;i<csize;i++)
 	{
-		for(myPrivateVariable.k=_minExt;myPrivateVariable.k<=_maxExt;myPrivateVariable.k++)
-		{	
-			setExtension(myPrivateVariable);
-			for(myPrivateVariable.j=0; myPrivateVariable.j<_seedTries;myPrivateVariable.j++)//_seedTries
-			{
-				myPrivateVariable.subnet=*refinedSeeds[i];// a copy of refinedSeeds;new SubNet();
-			 	expandRefinedSeeds(myPrivateVariable,layergraph,networks);
+		for(unsigned j=0; j<_numSpecies;j++)
+		{
+			myPrivateVariable.gd=networks.getGraph(j);
+			omp_set_lock(&myLock);
+			myPrivateVariable.myBfs=new BfsType(*myPrivateVariable.gd->g);
+			omp_unset_lock(&myLock);
+			myPrivateVariable.bfsList.push_back(myPrivateVariable.myBfs);
+		}
+		for(myPrivateVariable.j=0; myPrivateVariable.j<_seedTries;myPrivateVariable.j++)//_seedTries
+		{
+			myPrivateVariable.subnet=*refinedSeeds[i];// a copy of refinedSeeds;new SubNet();
+			if(!expandRefinedSeeds(myPrivateVariable,layergraph,networks))continue;
 #pragma omp critical
-				{
-				mySubNetList.push_back(new SubNet(myPrivateVariable.subnet));
-				}
+			{
+			mySubNetList.push_back(new SubNet(myPrivateVariable.subnet));
 			}
 		}
 	}
 
+	csize=mySubNetList.size();
+	if(g_verbosity>=VERBOSE_NONE)
+	{
+		std::cerr <<"# The process of seeds extension has finished!" << std::endl;
+	}
+	if(g_verbosity>=VERBOSE_ESSENTIAL)
+	{
+		std::cout <<"# Number of subnets:" << csize << std::endl;
+		//std::cout << "Threshold: " << _score_threshold << std::endl;
+		std::cout <<"# Subnet\tTree_Distance\tKSpine\tSpecies"<<std::endl;
+	}
+
 	PrivateVariablePlus myPrivateVariablePlus;
 	std::ofstream fout;
-	csize=mySubNetList.size();
+	int outnum=0;
 	localtree.readTree(_treefile);
-	//std::cout <<"Subnets:" << csize << std::endl;
+
 #pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks,mySubNetList,localtree,fout,outnum) firstprivate(myPrivateVariablePlus)
 	for(int i=0;i<csize;i++)
 	{
 		#pragma omp critical
 		{
-			//std::cout << i+1 <<"/"<<csize << std::endl;
 			myPrivateVariablePlus.scoremap=new ScoreEdgeMap(localtree.g);
 			myPrivateVariablePlus.matchingedgemap=new MatchingEdgeMap(localtree.g);
 		}
 		myPrivateVariablePlus.subnet=mySubNetList[i];
 		induceSubgraphs(myPrivateVariablePlus,layergraph,networks);
+		if(g_verbosity>=VERBOSE_DEBUG)
+			output(layergraph,myPrivateVariablePlus,fout);
 		myPrivateVariablePlus.phylogeny._dsize=myPrivateVariablePlus.subnet->net_spines.size();
 		initialPhylogy(myPrivateVariablePlus,layergraph,localtree);
 		simulatedAnnealingMethod(myPrivateVariablePlus,localtree);
@@ -856,15 +1079,20 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 			#pragma omp critical
 			{
 				outnum++;
+				myPrivateVariablePlus.outnum=outnum;
 				output(layergraph,myPrivateVariablePlus,fout);
 			}
 		}
 		clearStructure(myPrivateVariablePlus,localtree);
 	}
-	//std::cout << "Threshold: " << _score_threshold << std::endl;
-	//std::cout << "Alignments: " << outnum << std::endl;
-	 *
-	 */
+	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+	{
+		std::cout << "# Number of Alignments: " << outnum << std::endl;
+	}
+	if(g_verbosity>=VERBOSE_NONE)
+	{
+		std::cerr <<"# The process of subnets filtration has finished!" << std::endl;
+	}
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -884,9 +1112,16 @@ void
 		{
 			if(!interfere(myPrivateVariable,localtree))continue;// unsafe for example sumup();
 			myPrivateVariable.sampledata=myPrivateVariable.distribution(myPrivateVariable.generator);
-			if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+			if(g_verbosity>=VERBOSE_DEBUG)
 				std::cout <<myPrivateVariable.deltaData.delta <<"\t" << myPrivateVariable.sampledata<<"\t"<< exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta) <<"\n";
+			myPrivateVariable.finderFlag=false;
+			omp_set_lock(&myLock);
 			if(myPrivateVariable.deltaData.delta<0 || myPrivateVariable.sampledata < exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta))
+			{
+				myPrivateVariable.finderFlag=true;
+			}
+			omp_unset_lock(&myLock);
+			if(myPrivateVariable.finderFlag)
 			{
 				// update current state to the neighbor state and its interaction evolutionary score.
 				myPrivateVariable.sj=0;
@@ -899,10 +1134,19 @@ void
 			{
 				myPrivateVariable.node=myPrivateVariable.deltaData.treenode;
 				myPrivateVariable.id1=localtree.g.id(myPrivateVariable.node);
+				myPrivateVariable.finderFlag=false;
+				omp_set_lock(&myLock);
 				myPrivateVariable.graphdata=myPrivateVariable.phylogeny.node2graph[myPrivateVariable.id1];
 				if(myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)!=myPrivateVariable.graphdata->label2edge->end())
 				{
+					myPrivateVariable.finderFlag=true;
+				}
+				omp_unset_lock(&myLock);
+				if(myPrivateVariable.finderFlag)
+				{
+					omp_set_lock(&myLock);
 					 myPrivateVariable.myedge=myPrivateVariable.graphdata->label2edge->find(myPrivateVariable.deltaData.edgelabel)->second;
+					 omp_unset_lock(&myLock);
 					 myPrivateVariable.edgelabel=myPrivateVariable.deltaData.edgelabel;
 					 deleteEdge(myPrivateVariable);
 				}
@@ -920,7 +1164,7 @@ void
 
 template<typename NP, typename SN, typename LG, typename OP>
 void
-Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,const MyTree& localtree)
+Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable, const MyTree& localtree)
 {
 	myPrivateVariable.distEvolution.clear();
 	for(myPrivateVariable.ie=EdgeIt(localtree.g);myPrivateVariable.ie!=lemon::INVALID;++myPrivateVariable.ie)
@@ -929,8 +1173,8 @@ Search<NP,SN,LG,OP>::computeDist(PrivateVariablePlus& myPrivateVariable,const My
 	}
 	sumupScore(myPrivateVariable,myPrivateVariable.distEvolution);
 	myPrivateVariable.overallScore=myPrivateVariable.phylogeny._dsize/myPrivateVariable.sumDist;
-	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
-		std::cout << localtree.overallScore << std::endl;
+	if(g_verbosity>=VERBOSE_DEBUG)
+		std::cout << myPrivateVariable.overallScore << std::endl;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -996,20 +1240,40 @@ Search<NP,SN,LG,OP>::searchCandidatesParallel(PrivateVariable& myprivateVariable
 		myprivateVariable.protein=myprivateVariable.neighborproteins[myprivateVariable.sj];
 		myprivateVariable.neighbor=layergraph.label2node[myprivateVariable.protein];
 		myprivateVariable.neighborid=layergraph.graph.id(myprivateVariable.neighbor);
-		if(layergraph.validnodemap.find(myprivateVariable.neighborid)==layergraph.validnodemap.end())continue;
-		if(myprivateVariable.usedValidNodes.find(myprivateVariable.neighborid)!=myprivateVariable.usedValidNodes.end())continue;
-		if(find(myprivateVariable.candidates.begin(),myprivateVariable.candidates.end(),myprivateVariable.neighbor)!=myprivateVariable.candidates.end())continue;
+		myprivateVariable.indicator=true;
+		omp_set_lock(&myLock);
+		if(layergraph.validnodemap.find(myprivateVariable.neighborid)==layergraph.validnodemap.end())
+		{
+			myprivateVariable.indicator=false;
+		}
+		omp_unset_lock(&myLock);
+		if(!myprivateVariable.indicator)continue;
+		myprivateVariable.indicator=true;
+		omp_set_lock(&myLock);
+		if(myprivateVariable.usedValidNodes.find(myprivateVariable.neighborid)!=myprivateVariable.usedValidNodes.end())
+		{
+			myprivateVariable.indicator=false;
+		}
+		omp_unset_lock(&myLock);
+		if(!myprivateVariable.indicator)continue;
+		myprivateVariable.indicator=true;
+		omp_set_lock(&myLock);
+		if(find(myprivateVariable.candidates.begin(),myprivateVariable.candidates.end(),myprivateVariable.neighbor)!=myprivateVariable.candidates.end())
+		{
+			myprivateVariable.indicator=false;
+		}
+		omp_unset_lock(&myLock);
+		if(!myprivateVariable.indicator)continue;
 		myprivateVariable.candidates.push_back(myprivateVariable.neighbor);
 	}
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
-void
+bool
 Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 										LayerGraph& layergraph,
 										NetworkPool& networks)
 {
-	
 	//// searching neighbors of subnet.
 	myprivateVariable.usedValidNodes.clear();
 	myprivateVariable.candidates.clear();
@@ -1020,10 +1284,14 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 		{
 			myprivateVariable.node=myprivateVariable.pspine.data[myprivateVariable.ej];
 			myprivateVariable.nodeid=layergraph.graph.id(myprivateVariable.node);
-			if(layergraph.validnodemap.find(myprivateVariable.nodeid)==layergraph.validnodemap.end())continue;
-			myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
+			if(myprivateVariable.ej==0)myprivateVariable.num=myprivateVariable.nodeid;
+			else if(myprivateVariable.nodeid<myprivateVariable.num)
+			{
+				myprivateVariable.num=myprivateVariable.nodeid;
+			}
 		}
-		
+		assert(layergraph.validnodemap.find(myprivateVariable.num)!=layergraph.validnodemap.end());
+		myprivateVariable.usedValidNodes[myprivateVariable.num]=true;
 		searchCandidatesParallel(myprivateVariable, 
 						layergraph, 
 						networks);
@@ -1037,45 +1305,61 @@ Search<NP,SN,LG,OP>::expandRefinedSeeds(PrivateVariable& myprivateVariable,
 		else
 			++myprivateVariable.it;
 	}
-	myprivateVariable.num=0;
-	while(myprivateVariable.num++<myprivateVariable.numExtension)
+	if(g_verbosity>=VERBOSE_DEBUG)
 	{
-		heuristicSearch(myprivateVariable,
-						layergraph,
-						networks);
+		output(layergraph,myprivateVariable);
 	}
-	//assert(myprivateVariable.subnet.net_spines.size()==static_cast<unsigned>(myprivateVariable.numExtension+_seedSize));
-	
+	myprivateVariable.num=0;
+	while(myprivateVariable.num <_maxExt)
+	{
+		if(!heuristicSearch(myprivateVariable,
+						layergraph,
+						networks)) {
+			if(myprivateVariable.num<_minExt)return false;
+			else break;
+		}
+		myprivateVariable.num++;
+	}
+	return true;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::heuristicSearch(PrivateVariable& myprivateVariable,LayerGraph& layergraph,NetworkPool& networks)
 {
-	if(myprivateVariable.candidates.size()== 0)
+	if(!myprivateVariable.candidates.empty())
 	{
-		myprivateVariable.dice_roll = myprivateVariable.discrete(generator);
-		myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
-		while(myprivateVariable.usedValidNodes.find(layergraph.graph.id(myprivateVariable.node))!=myprivateVariable.usedValidNodes.end())
+		myprivateVariable.ei=0;
+		do
 		{
-			myprivateVariable.dice_roll = myprivateVariable.discrete(generator);
-			myprivateVariable.node=layergraph.validnodes[myprivateVariable.dice_roll];
+			if(myprivateVariable.ei++ >= (unsigned) _numSpinetries)break;
+			if(g_verbosity>=VERBOSE_DEBUG)
+			{
+				output(layergraph,myprivateVariable);
+			}
+			myprivateVariable.dice_roll_e = distribution(generator)%myprivateVariable.candidates.size();
+			myprivateVariable.node=myprivateVariable.candidates[myprivateVariable.dice_roll_e];
+			myprivateVariable.spine.clear();
+			if(!sampleKSpineParallel(myprivateVariable,layergraph,networks))
+			{
+				std::cerr <<"Invalid sample node!"<<std::endl;
+				return false;
+			}
+		}while(!isStronglyConnected_3(myprivateVariable,layergraph,networks));
+		if(myprivateVariable.ei > (unsigned)_numSpinetries)
+			return false;
+		myprivateVariable.candidates.erase(myprivateVariable.candidates.begin()+myprivateVariable.dice_roll_e);
+		if(g_verbosity>=VERBOSE_DEBUG)
+		{
+			output(layergraph,myprivateVariable);
 		}
 	}else
 	{
-		myprivateVariable.dice_roll = distribution(generator)%myprivateVariable.candidates.size();
-		myprivateVariable.node=myprivateVariable.candidates[myprivateVariable.dice_roll];
-		myprivateVariable.candidates.erase(myprivateVariable.candidates.begin()+myprivateVariable.dice_roll);
-	}
-	
-	myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
-	//if(!sampleKSpine(myprivateVariable.node,myprivateVariable.pspine,layergraph,networks))
-	myprivateVariable.spine.clear();
-	if(!sampleKSpineParallel(myprivateVariable,layergraph,networks))// parallize sampleSpine
-	{
-		std::cerr <<"Invalid sample node!"<<std::endl;
 		return false;
 	}
+	omp_set_lock(&myLock);
+	myprivateVariable.usedValidNodes[layergraph.graph.id(myprivateVariable.node)]=true;
+	omp_unset_lock(&myLock);
 	myprivateVariable.subnet.net_spines.push_back(myprivateVariable.pspine);
 	searchCandidatesParallel(myprivateVariable,layergraph,networks);
 	
@@ -1111,23 +1395,30 @@ Search<NP,SN,LG,OP>::searchSeedsParallel(LayerGraph& layergraph, NetworkPool& ne
 {
 	verifyspineParallel(layergraph, networks);
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
-#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks) firstprivate(myPrivateVariable)
+	#pragma omp parallel for num_threads(_numthreads) schedule(dynamic,1) shared(layergraph,networks) firstprivate(myPrivateVariable)
 	for(int i=0; i<_numSeeds;i++)
 	{
-		//myPrivateVariablePlus.clear();
-		myPrivateVariable.mysubnet=new SubNet(_numSpecies,_seedSize);// used local variable i, mysubnet 
-		if(!sampleSeedParallel(myPrivateVariable,layergraph,networks))
+		myPrivateVariable.bfsList.clear();
+		for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;myPrivateVariable.ej++)
 		{
-			delete myPrivateVariable.mysubnet;
+			myPrivateVariable.gd=networks.getGraph(myPrivateVariable.ej);
+			omp_set_lock(&myLock);
+			myPrivateVariable.myBfs=new BfsType(*myPrivateVariable.gd->g);
+			omp_unset_lock(&myLock);
+			myPrivateVariable.bfsList.push_back(myPrivateVariable.myBfs);
 		}
-		else
+		omp_set_lock(&myLock);
+		myPrivateVariable.mysubnet=new SubNet(_numSpecies,_seedSize);
+		omp_unset_lock(&myLock);
+		while(!sampleSeedParallel(myPrivateVariable,layergraph,networks))
 		{
-#pragma omp critical
-			{
-				refinedSeeds.push_back(myPrivateVariable.mysubnet);
-			}
+			myPrivateVariable.mysubnet->clearAll();
 		}
-		i=refinedSeeds.size();
+		#pragma omp critical
+		{
+			//std::cerr << "The " << i+1 <<"th seed was found."<< std::endl;
+			refinedSeeds.push_back(myPrivateVariable.mysubnet);
+		}
 	}
 }
 
@@ -1166,7 +1457,7 @@ Search<NP,SN,LG,OP>::sampleSeed(SubNet* subnet, LayerGraph& layergraph, NetworkP
 		}
 
 		/// Output this sample.
-		if(g_verbosity >= VERBOSE_NON_ESSENTIAL)
+		if(g_verbosity >= VERBOSE_DEBUG)
 		{
 			for(unsigned j=0;j<_numSpecies;++j)
 				std::cout << layergraph.node2label[pspine.data[j]]<<" ";
@@ -1186,48 +1477,230 @@ Search<NP,SN,LG,OP>::sampleSeedParallel(PrivateVariable& myPrivateVariable, Laye
 // used local variable i, mysubnet 
 {
 	myPrivateVariable.dice_roll = myPrivateVariable.discrete(myPrivateVariable.generator);
+	omp_set_lock(&myLock);
 	myPrivateVariable.firstnode = layergraph.validnodes[myPrivateVariable.dice_roll];
-	////std::vector<Node> candidates;
+	omp_unset_lock(&myLock);
 	myPrivateVariable.candidates.clear();
 	myPrivateVariable.usedValidNodes.clear();
-	////std::unordered_map<int,bool> usedValidNodes;
 	for(myPrivateVariable.ei=0;myPrivateVariable.ei<_seedSize;++myPrivateVariable.ei)
 	{
-		if(0==myPrivateVariable.ei) myPrivateVariable.node = myPrivateVariable.firstnode;// firstnode, node
-		else if(myPrivateVariable.candidates.size()==0)
+		if(0==myPrivateVariable.ei)
 		{
-			myPrivateVariable.dice_roll = myPrivateVariable.discrete(myPrivateVariable.generator);
-			myPrivateVariable.node=layergraph.validnodes[myPrivateVariable.dice_roll];
+			myPrivateVariable.node = myPrivateVariable.firstnode;// firstnode, node
+			if(!sampleKSpineParallel(myPrivateVariable,layergraph,networks))
+			{
+				std::cerr <<"Invalid sample node!"<<std::endl;
+				return false;
+			}
 		}
-	else
-	{
-	//		/// randomly sample a neighbor in candidates.
-			myPrivateVariable.dice_roll = distribution(myPrivateVariable.generator)%myPrivateVariable.candidates.size();
-			myPrivateVariable.node=myPrivateVariable.candidates[myPrivateVariable.dice_roll];
-			myPrivateVariable.candidates.erase(myPrivateVariable.candidates.begin()+myPrivateVariable.dice_roll);
-		}
-	////	//K_Spine pspine;
-		myPrivateVariable.usedValidNodes[layergraph.graph.id(myPrivateVariable.node)]=true;
-		if(!sampleKSpineParallel(myPrivateVariable,layergraph,networks))
+		else if(!myPrivateVariable.candidates.empty())
 		{
-			std::cerr <<"Invalid sample node!"<<std::endl;
+			/// randomly sample a neighbor in candidates.
+			myPrivateVariable.num=0;
+			do
+			{
+				if(myPrivateVariable.num++ >= _numSpinetries)break;
+				if(g_verbosity>=VERBOSE_DEBUG)
+				{
+					output(layergraph,myPrivateVariable);
+				}
+				myPrivateVariable.dice_roll_e = distribution(myPrivateVariable.generator)%myPrivateVariable.candidates.size();
+				myPrivateVariable.node=myPrivateVariable.candidates[myPrivateVariable.dice_roll_e];
+				if(!sampleKSpineParallel(myPrivateVariable,layergraph,networks))
+				{
+					std::cerr <<"Invalid sample node!"<<std::endl;
+					return false;
+				}
+			}while(!isStronglyConnected(myPrivateVariable,layergraph,networks));
+			if(myPrivateVariable.num > _numSpinetries)
+				return false;
+			myPrivateVariable.candidates.erase(myPrivateVariable.candidates.begin()+myPrivateVariable.dice_roll_e);
+			if(g_verbosity>=VERBOSE_DEBUG)
+			{
+				output(layergraph,myPrivateVariable);
+			}
+		}else
+		{
 			return false;
 		}
-
+	////	//K_Spine pspine;
+		omp_set_lock(&myLock);
+		myPrivateVariable.usedValidNodes[layergraph.graph.id(myPrivateVariable.node)]=true;
+		omp_unset_lock(&myLock);
 		/// Output this sample.
-		if(g_verbosity >= VERBOSE_NON_ESSENTIAL)
+		if(g_verbosity >= VERBOSE_DEBUG)
 		{
+			omp_set_lock(&myLock);
 			for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
 				std::cout << layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]]<<" ";
 			std::cout << std::endl;
+			omp_unset_lock(&myLock);
 		}
-
 		searchCandidatesParallel(myPrivateVariable,layergraph,networks);
+		if(g_verbosity>=VERBOSE_DEBUG)
+		{
+			output(layergraph,myPrivateVariable);
+		}
 		myPrivateVariable.mysubnet->net_spines.push_back(myPrivateVariable.pspine);
 	}
-	//myPrivateVariable.mysubnet->induceSubgraphs(networks,layergraph);
-	induceSubgraphsPrivateVar(myPrivateVariable,layergraph,networks);
-	return checkConnectionParallel(myPrivateVariable,layergraph,networks);
+	return true;
+}
+
+/// Make sure each protein in a new k-spine connects to the original subnet.
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::isStronglyConnected(PrivateVariable& myPrivateVariable,LayerGraph& layergraph,NetworkPool& networks)
+{
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
+		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.mysubnet->net_spines.size();myPrivateVariable.sj++)
+		{
+			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.mysubnet->net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
+			if(myPrivateVariable.protein1.compare(myPrivateVariable.protein2)==0)
+				continue;
+			else if(myPrivateVariable.protein1.compare(myPrivateVariable.protein2)>0)
+			{
+				myPrivateVariable.protein.clear();
+				myPrivateVariable.protein.append(myPrivateVariable.protein2);
+				myPrivateVariable.protein.append(myPrivateVariable.protein1);
+			 }
+			else
+			{
+				myPrivateVariable.protein.clear();
+				myPrivateVariable.protein.append(myPrivateVariable.protein1);
+				myPrivateVariable.protein.append(myPrivateVariable.protein2);
+			}
+			myPrivateVariable.indicator=true;
+			omp_set_lock(&myLock);
+			if(networks.getGraph(myPrivateVariable.ej)->interactionmap.find(myPrivateVariable.protein)
+					==networks.getGraph(myPrivateVariable.ej)->interactionmap.end())
+			{
+				myPrivateVariable.indicator=false;
+			}
+			omp_unset_lock(&myLock);
+			if(!myPrivateVariable.indicator)return false;
+		}
+	}
+	return true;
+}
+
+/// Make sure each protein in a new k-spine connects to the original subnet.
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::isStronglyConnected_1(PrivateVariable& myPrivateVariable,LayerGraph& layergraph,NetworkPool& networks)
+{
+	myPrivateVariable.secondaryNeighbors.clear();
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
+		myPrivateVariable.gd=networks.getGraph(myPrivateVariable.ej);
+		myPrivateVariable.myBfs=myPrivateVariable.bfsList[myPrivateVariable.ej];
+		omp_set_lock(&myLock);
+		myPrivateVariable.myBfs->init();
+		myPrivateVariable.myBfs->addSource((*myPrivateVariable.gd->invIdNodeMap)[myPrivateVariable.protein1]);
+		while(!myPrivateVariable.myBfs->emptyQueue())
+		{
+			myPrivateVariable.rnode=myPrivateVariable.myBfs->processNextNode();
+			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>1)break;
+			myPrivateVariable.secondaryNeighbors[(*myPrivateVariable.gd->label)[myPrivateVariable.rnode]]=true;
+			if(g_verbosity>=VERBOSE_DEBUG)
+				std::cout << (*myPrivateVariable.gd->label)[myPrivateVariable.rnode] << std::endl;
+		}
+		omp_unset_lock(&myLock);
+	}
+
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.nodeid=0;
+		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.mysubnet->net_spines.size();myPrivateVariable.sj++)
+		{
+			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.mysubnet->net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
+			if(myPrivateVariable.secondaryNeighbors.find(myPrivateVariable.protein2)==myPrivateVariable.secondaryNeighbors.end())
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
+/// Make sure each protein in a new k-spine connects to the original subnet.
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::isStronglyConnected_2(PrivateVariable& myPrivateVariable,LayerGraph& layergraph,NetworkPool& networks)
+{
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
+		myPrivateVariable.nodeid=0;
+		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.subnet.net_spines.size();myPrivateVariable.sj++)
+		{
+			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.subnet.net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
+			if(myPrivateVariable.protein1.compare(myPrivateVariable.protein2)==0)
+			{
+				myPrivateVariable.nodeid=1;
+				break;
+			}
+			else if(myPrivateVariable.protein1.compare(myPrivateVariable.protein2)>0)
+			{
+				myPrivateVariable.protein.clear();
+				myPrivateVariable.protein.append(myPrivateVariable.protein2);
+				myPrivateVariable.protein.append(myPrivateVariable.protein1);
+			 }
+			else
+			{
+				myPrivateVariable.protein.clear();
+				myPrivateVariable.protein.append(myPrivateVariable.protein1);
+				myPrivateVariable.protein.append(myPrivateVariable.protein2);
+			}
+			if(networks.getGraph(myPrivateVariable.ej)->interactionmap.find(myPrivateVariable.protein)
+					!=networks.getGraph(myPrivateVariable.ej)->interactionmap.end())
+				{
+				myPrivateVariable.nodeid=1;
+				break;
+				}
+		}
+		if(myPrivateVariable.nodeid==0)return false;
+	}
+	return true;
+}
+
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::isStronglyConnected_3(PrivateVariable& myPrivateVariable,LayerGraph& layergraph,NetworkPool& networks)
+{
+	myPrivateVariable.secondaryNeighbors.clear();
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
+		myPrivateVariable.gd=networks.getGraph(myPrivateVariable.ej);
+		myPrivateVariable.myBfs=myPrivateVariable.bfsList[myPrivateVariable.ej];
+		myPrivateVariable.myBfs->init();
+		myPrivateVariable.myBfs->addSource((*myPrivateVariable.gd->invIdNodeMap)[myPrivateVariable.protein1]);
+		while(!myPrivateVariable.myBfs->emptyQueue())
+		{
+			myPrivateVariable.rnode=myPrivateVariable.myBfs->processNextNode();
+			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>2)break;
+			myPrivateVariable.secondaryNeighbors[(*myPrivateVariable.gd->label)[myPrivateVariable.rnode]]=true;
+			if(g_verbosity>=VERBOSE_DEBUG)
+				std::cout << (*myPrivateVariable.gd->label)[myPrivateVariable.rnode] << std::endl;
+		}
+	}
+	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
+	{
+		myPrivateVariable.nodeid=0;
+		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.subnet.net_spines.size();myPrivateVariable.sj++)
+		{
+			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.subnet.net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
+			if(myPrivateVariable.secondaryNeighbors.find(myPrivateVariable.protein2)!=myPrivateVariable.secondaryNeighbors.end())
+			{
+				myPrivateVariable.nodeid=1;
+				break;
+			}
+		}
+		if(myPrivateVariable.nodeid==0)return false;
+	}
+	return true;
 }
 
 /// Collect these nodes which can conduct a successful sample of k-spine.
@@ -1267,7 +1740,7 @@ Search<NP,SN,LG,OP>::checkConnectionParallel(PrivateVariable& myprivateVariable,
 	myprivateVariable.numConnected=0;
 	for( myprivateVariable.ei=0;myprivateVariable.ei<_numSpecies;++myprivateVariable.ei)
 	{
-		if(myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->edgeNum< (myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->nodeNum-NUM_GAP_EDGE) )continue;/// To fulfills the minimal number of edges. 
+		if(myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->edgeNum < (myprivateVariable.mysubnet->subgraphs[myprivateVariable.ei]->nodeNum-NUM_GAP_EDGE) )continue;/// To fulfills the minimal number of edges.
 		myprivateVariable.numConnected++;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
@@ -1279,26 +1752,31 @@ template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::sampleKSpineParallel(PrivateVariable& myprivateVariable,LayerGraph& layergraph,NetworkPool& networks)
 {
-	
-	myprivateVariable.m_candidates.clear();//m_candidates -> candidates for expand to a kspine;
+	myprivateVariable.transient_candidates.clear();//transient_candidates -> candidates for expand to a kspine;
 	myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.node]);
-	myprivateVariable.spine.clear();
-	myprivateVariable.spine.data[myprivateVariable.host]=myprivateVariable.node;
-	myprivateVariable.spine.states[myprivateVariable.host]=true;
+	myprivateVariable.transient_spine.clear();
+	myprivateVariable.transient_spine.data[myprivateVariable.host]=myprivateVariable.node;
+	myprivateVariable.transient_spine.states[myprivateVariable.host]=true;
 	if(g_verbosity==VERBOSE_DEBUG)
-	std::cerr << layergraph.node2label[myprivateVariable.node] << std::endl;
+	{
+		omp_set_lock(&myLock);
+		std::cout << layergraph.node2label[myprivateVariable.node] << std::endl;
+		omp_unset_lock(&myLock);
+	}
 	
 	for(myprivateVariable.inc=IncEdgeIt(layergraph.graph,myprivateVariable.node);myprivateVariable.inc!=lemon::INVALID;++myprivateVariable.inc)
 	{
 		myprivateVariable.rnode=layergraph.graph.runningNode(myprivateVariable.inc);
 		myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.rnode]);
-		if(g_verbosity==VERBOSE_DEBUG)
-		std::cerr << layergraph.node2label[myprivateVariable.rnode] << std::endl;
-		if(myprivateVariable.spine.states[myprivateVariable.host])continue;
-		if(myprivateVariable.node < myprivateVariable.rnode) myprivateVariable.m_candidates.push_back(myprivateVariable.rnode);
+		if(myprivateVariable.transient_spine.states[myprivateVariable.host])continue;
+		if(myprivateVariable.node < myprivateVariable.rnode) myprivateVariable.transient_candidates.push_back(myprivateVariable.rnode);
 	}
 	myprivateVariable.sk=_numSpecies;
-	return expandspineParallel(myprivateVariable,myprivateVariable.spine,myprivateVariable.m_candidates, layergraph,networks);
+	myprivateVariable.LIFO_transient_spine.push(myprivateVariable.transient_spine);
+	myprivateVariable.LIFO_transient_candidates.push(myprivateVariable.transient_candidates);
+	output(layergraph,myprivateVariable);
+	myprivateVariable.indicator=expandspineParallel_1(myprivateVariable, layergraph, networks);
+	return myprivateVariable.indicator;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -1335,6 +1813,95 @@ Search<NP,SN,LG,OP>::sampleStringElement(int up)
     return dice_roll;
 }
 
+template<typename NP, typename SN, typename LG, typename OP>
+bool
+Search<NP,SN,LG,OP>::expandspineParallel_1(
+									PrivateVariable& myprivateVariable
+									, LayerGraph& layergraph
+									, NetworkPool& networks)
+{
+	if(0==--myprivateVariable.sk)
+	{
+		myprivateVariable.pspine=myprivateVariable.transient_spine;
+		return true;
+	}
+	while(!myprivateVariable.transient_candidates.empty())
+	{
+		//unsigned host;
+		myprivateVariable.dice_roll = distribution(generator)%(myprivateVariable.transient_candidates.size());
+		myprivateVariable.wnode = myprivateVariable.transient_candidates[myprivateVariable.dice_roll];
+		myprivateVariable.transient_candidates.erase(myprivateVariable.transient_candidates.begin()+myprivateVariable.dice_roll);
+		myprivateVariable.secondCandidates.clear();
+		myprivateVariable.exclCandidates.clear();
+		/// Assign V'UN(V') to exclCandidates.
+		for(myprivateVariable.sj=0;myprivateVariable.sj<_numSpecies;myprivateVariable.sj++)
+		{
+			if(!myprivateVariable.transient_spine.states[myprivateVariable.sj])continue;
+			myprivateVariable.spinenode=myprivateVariable.transient_spine.data[myprivateVariable.sj];
+			myprivateVariable.exclCandidates.push_back(myprivateVariable.spinenode);
+
+			for(myprivateVariable.inc=IncEdgeIt(layergraph.graph,myprivateVariable.spinenode);myprivateVariable.inc!=lemon::INVALID;++myprivateVariable.inc)
+			{
+				myprivateVariable.rnode=layergraph.graph.runningNode(myprivateVariable.inc);
+				myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.rnode]);
+				if(myprivateVariable.transient_spine.states[myprivateVariable.host])continue;/// If yes, it's not a neighbor.
+				myprivateVariable.indicator=true;
+				omp_set_lock(&myLock);
+				if( std::find(myprivateVariable.exclCandidates.begin(), myprivateVariable.exclCandidates.end(), myprivateVariable.rnode)
+					!= myprivateVariable.exclCandidates.end())
+				{
+					myprivateVariable.indicator=false;
+				}
+				omp_unset_lock(&myLock);
+				if(!myprivateVariable.indicator)continue;
+				myprivateVariable.exclCandidates.push_back(myprivateVariable.rnode);
+			}
+		}
+		/// Assign new value to secondCandidates.
+		for(myprivateVariable.inc=IncEdgeIt(layergraph.graph,myprivateVariable.wnode);myprivateVariable.inc!=lemon::INVALID;++myprivateVariable.inc)
+		{
+			myprivateVariable.rnode=layergraph.graph.runningNode(myprivateVariable.inc);
+			myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.rnode]);
+			if(myprivateVariable.transient_spine.states[myprivateVariable.host])continue;
+			myprivateVariable.indicator=false;
+			omp_set_lock(&myLock);
+			if( std::find(myprivateVariable.exclCandidates.begin(), myprivateVariable.exclCandidates.end(), myprivateVariable.rnode)
+					!= myprivateVariable.exclCandidates.end())
+			{
+				myprivateVariable.indicator=true;
+			}
+			omp_unset_lock(&myLock);
+			if(myprivateVariable.indicator) continue;
+			if (myprivateVariable.node < myprivateVariable.rnode) myprivateVariable.secondCandidates.push_back(myprivateVariable.rnode);
+		}
+		myprivateVariable.newspine=myprivateVariable.transient_spine;
+		myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.wnode]);
+		if(g_verbosity==VERBOSE_DEBUG)
+		std::cerr << layergraph.node2label[myprivateVariable.wnode] << std::endl;
+		myprivateVariable.newspine.data[myprivateVariable.host]=myprivateVariable.wnode;
+		myprivateVariable.newspine.states[myprivateVariable.host]=true;
+		for(myprivateVariable.sj=0;myprivateVariable.sj<myprivateVariable.transient_candidates.size();++myprivateVariable.sj)
+		{
+			myprivateVariable.rnode=myprivateVariable.transient_candidates[myprivateVariable.sj];
+		  myprivateVariable.host=networks.getHost(layergraph.node2label[myprivateVariable.rnode]);
+			if(myprivateVariable.newspine.states[myprivateVariable.host])continue;
+			myprivateVariable.secondCandidates.push_back(myprivateVariable.rnode);
+		}
+		myprivateVariable.LIFO_transient_spine.push(myprivateVariable.transient_spine);
+		myprivateVariable.LIFO_transient_candidates.push(myprivateVariable.transient_candidates);
+		myprivateVariable.transient_spine=myprivateVariable.newspine;
+		myprivateVariable.transient_candidates=myprivateVariable.secondCandidates;
+		output(layergraph,myprivateVariable);
+		if(expandspineParallel_1(myprivateVariable,layergraph,networks))return true;
+		myprivateVariable.transient_candidates=myprivateVariable.LIFO_transient_candidates.top();
+		myprivateVariable.transient_spine=myprivateVariable.LIFO_transient_spine.top();
+		myprivateVariable.LIFO_transient_candidates.pop();
+		myprivateVariable.LIFO_transient_spine.pop();
+		output(layergraph,myprivateVariable);
+	}
+	myprivateVariable.sk++;
+	return false;
+}
 template<typename NP, typename SN, typename LG, typename OP>
 bool
 Search<NP,SN,LG,OP>::expandspineParallel(

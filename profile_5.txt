@@ -1,10 +1,8 @@
-folder ./dataset/dip/5-way/
-species Celeg20130707
-species Dmela20130707
-#species Ecoli20130707
-species Hsapi20130707
-species Mmusc20130707
-#species Rnorv20130707
-species Scere20130707
+folder ../crosslink/dataset/intact10022014/5-way/
+species 1-human9606
+species 2-worm6239
+species 3-fly7227
+species 6-mouse10090
+species 7-ecoli562
 layers  input_blast.txt
 tree    tree.txt
