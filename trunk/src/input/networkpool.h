@@ -68,10 +68,10 @@ public:
   };
   std::vector<GraphData*> _graphSet;
   
-	NetworkPool();
-	~NetworkPool();
-	bool initNetworkPool(std::vector<std::string>&);
-	bool readNetwork(std::string&,short);
+  NetworkPool();
+  ~NetworkPool();
+  bool initNetworkPool(std::vector<std::string>&);
+  bool readNetwork(std::string&,short);
   GraphData* getGraph(int);
   unsigned getHost(std::string);
   bool existNode(std::string);
@@ -226,12 +226,12 @@ bool NetworkPool<GR,BP>::readNetwork(std::string &filename,short i)
 	  if(maxNode < (*data->degreeMap)[mynode])
 		maxNode=(*data->degreeMap)[mynode];
   }
-  if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
+  if(g_verbosity>=VERBOSE_NONE)
   {
-    std::cerr <<filename <<" has been read successfully!"<<std::endl;
-    std::cerr <<"# of proteins:"<< data->nodeNum <<"\t"<<std::endl;
-    std::cerr <<"# of interactions:"<<data->edgeNum<<std::endl;
-    std::cerr <<"the largest degree:"<< maxNode << std::endl;
+    std::cout <<"# " <<filename <<" has been read successfully!"<<std::endl;
+    std::cout <<"# number of proteins:"<< data->nodeNum <<"\t"<<std::endl;
+    std::cout <<"# number of interactions:"<<data->edgeNum<<std::endl;
+    std::cout <<"# the largest degree:"<< maxNode << std::endl;
   }
   allNodeNum+=data->nodeNum;
   return 1;

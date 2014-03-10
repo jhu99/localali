@@ -35,6 +35,7 @@ typedef struct _Option
   std::string alignmentfile;
   std::string formatfile;
   double beta;
+  double alpha;
   double score_threshold;
   int method;
   int task;
@@ -46,22 +47,28 @@ typedef struct _Option
   int numseeds;
   int numconnected;
   int numthreads;
+  int numspinetries;
+  int verbose;
   bool parallel;
   _Option()
   {
     profile="./profile.txt";
-		method=1;
-		task=0;
+	method=1;
+	task=0;
     numspecies=3;
     seedsize=2;
     seedtries=1;
-		minext=11;
-		maxext=12;
-    numseeds=200;
+	minext=6;
+	maxext=13;
+    numseeds=400;
     numconnected=3;
     numthreads=1;
-		score_threshold=0.2;
-		parallel=false;
+	score_threshold=0.2;
+	numspinetries=5;
+	verbose=0;
+	beta=1.0;
+	alpha=0.2;
+	parallel=false;
   }
 }Option;
 
@@ -101,7 +108,11 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("numconnected","Number of connected subnetwork. Default is 3.", myoption.numconnected)
 	.refOption("numseeds","Number of refined seeds. Default is 200.", myoption.numseeds)
 	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
+	.refOption("numspinetries","Number of tries for strongly connected spines. Default is 5.", myoption.numspinetries)
 	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
+	.refOption("alpha","Impact factor of the evolutionary rate. Default is 0.5", myoption.alpha)
+	.refOption("beta","The second impact factor of the evolutionary rate of interactions. Default is 1.0.", myoption.beta)
+	.refOption("verbose","Display standard output levle:0-3. Default is 0.", myoption.verbose)
 	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel);
 	return true;
 }
@@ -113,7 +124,7 @@ bool runParser(ArgParser& myparser, Option& myoption)
   myprofile.getOption(myoption);
   if(myoption.parallel)
   {
-	  std::cout << "This program will run with "<< myoption.numthreads <<" multiple threads." << std::endl;
+	  std::cout << "# This program will run with "<< myoption.numthreads <<" multiple threads." << std::endl;
   }
   return true;
 }
@@ -130,7 +141,7 @@ int main(int argc, char** argv)
   MySearch localAlignment(myoption);
   Timer t(false);
 
-  g_verbosity=VERBOSE_DEBUG;//VERBOSE_ESSENTIAL;
+  	g_verbosity=(VerbosityLevel)myoption.verbose;//VERBOSE_NON_ESSENTIAL;//VERBOSE_ESSENTIAL;
 	t.start();
 
 	if(myparser.given("alignment"))
@@ -228,6 +239,6 @@ int main(int argc, char** argv)
 	}
 	t.stop();
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
-		std::cout <<"Elapsed time: "<< t <<std::endl;
+		std::cout <<"# Elapsed time: "<< t <<std::endl;
   return 1;
 }

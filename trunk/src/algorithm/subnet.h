@@ -143,9 +143,11 @@ public:
   ~SubNet();
   bool induceSubgraphs(NetworkPool&, LayerGraph&);
   bool clearStructure();
-	void output(LayerGraph&,std::ofstream&);
-	void outputSubgraphs(LayerGraph&,std::string&,int,int,int);
-	void outputAlignment(float,LayerGraph&,std::string&,int,int,int);
+  bool clearAll();
+  void output(LayerGraph&);
+  void output(LayerGraph&,std::ofstream&);
+  void outputSubgraphs(LayerGraph&,std::string&,int,int,int);
+  void outputAlignment(float,LayerGraph&,std::string&,int,int,int);
 };
 
 template<typename NP, typename LG>
@@ -200,13 +202,25 @@ SubNet<NP,LG>::outputSubgraphs(LayerGraph& layergraph,std::string& folder,int se
 
 template<typename NP, typename LG>
 void
+SubNet<NP,LG>::output(LayerGraph& layergraph)
+{
+	for(unsigned i=0;i<net_spines.size();i++)
+	{
+		for(unsigned j=0;j<_numSpecies;j++)
+		{
+			std::cout << layergraph.node2label[net_spines[i].data[j]]<<"\t";
+		}
+		std::cout << std::endl;
+	}
+}
+template<typename NP, typename LG>
+void
 SubNet<NP,LG>::output(LayerGraph& layergraph,std::ofstream& fout)
 {
 	for(unsigned i=0;i<net_spines.size();i++)
 	{
 		for(unsigned j=0;j<_numSpecies;j++)
 		{
-			if(g_verbosity>=VERBOSE_ESSENTIAL)
 			fout << layergraph.node2label[net_spines[i].data[j]]<<"\t";
 		}
 		fout << std::endl;
@@ -241,6 +255,18 @@ SubNet<NP,LG>::clearStructure()
 	return true;
 }
 
+template<typename NP, typename LG>
+bool
+SubNet<NP,LG>::clearAll()
+{
+	/*for(unsigned i=0;i<_numSpecies;++i)
+	{
+		delete subgraphs[i];
+	}*/
+	subgraphs.clear();
+	net_spines.clear();
+	return true;
+}
 template<typename NP, typename LG>
 bool
 SubNet<NP,LG>::induceSubgraphs(NetworkPool& networks, LayerGraph& layergraph)
