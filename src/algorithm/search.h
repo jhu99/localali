@@ -964,7 +964,8 @@ void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myP
 template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
-	fout <<"# score: " << myPrivateVariablePlus.overallScore << "\n";
+	fout <<"# (score,distance,dsize,species): " << myPrivateVariablePlus.overallScore << "\t" << myPrivateVariablePlus.sumDist <<
+	 myPrivateVariablePlus.phylogeny._dsize << "\t" << _numSpecies << "\n";
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
 	{
 		std::cout << myPrivateVariablePlus.outnum<<"\t"<<myPrivateVariablePlus.sumDist << "\t"
