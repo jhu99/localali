@@ -192,6 +192,14 @@ int main(int argc, char** argv)
 		{
 			myformat.partitionGOA(myoption.formatfile);
 		}
+		else if(myoption.task==7)
+		{
+			myformat.generateAlignNemoPPI(myoption.formatfile);
+		}
+		else if(myoption.task==8)
+		{
+			myformat.generateAlignNemoSim(myoption.formatfile);
+		}
 	}
 	else if(myparser.given("analyse"))
 	{

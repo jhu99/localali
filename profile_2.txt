@@ -1,5 +1,0 @@
-folder ../crosslink/dataset/intact10022014/2-way/
-species 2-worm6239
-species 3-fly7227
-layers  input_blast.txt
-tree    tree.txt
