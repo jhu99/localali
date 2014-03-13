@@ -14,8 +14,8 @@ template<typename NetworksType,typename MyOption>
 class Format
 {
 	public:
-  Format(MyOption&);
-  ~Format(){};
+	Format(MyOption&);
+	~Format(){};
 	std::string fromatfilename;
 	void extractInteractions();
 	void extractIntActInteractions();
@@ -26,6 +26,8 @@ class Format
 	void writeAlignmentFile(std::string,std::string);// usefulless
 	void writeSubnetworks(MyOption&);
 	void partitionGOA(std::string);
+	void generateAlignNemoPPI(std::string);
+	void generateAlignNemoSim(std::string);
 	int numspecies;
 };
 
@@ -33,6 +35,42 @@ template<typename NetworksType,typename MyOption>
 Format<NetworksType,MyOption>::Format(MyOption& myoption)
 {
 	numspecies=myoption.numspecies;
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::generateAlignNemoPPI(std::string inputfilename)
+{
+	std::ifstream input(inputfilename.c_str());
+	std::string outputfilename(inputfilename);outputfilename.append(".nemo");
+	std::ofstream output(outputfilename.c_str());
+	std::string line,protein1,protein2;
+	float intscore;
+	while (std::getline(input,line))
+	{
+		std::stringstream linestream(line);
+		linestream >> protein1 >> protein2 >> intscore;
+		output << protein1 <<"\t" << protein2 <<"\tUSELESS\t" << intscore << std::endl;
+	}
+	input.close();
+	output.close();
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::generateAlignNemoSim(std::string inputfilename)
+{
+	std::ifstream input(inputfilename.c_str());
+	std::string outputfilename(inputfilename);outputfilename.append(".nemo");
+	std::ofstream output(outputfilename.c_str());
+	std::string line,protein1,protein2;
+	double escore;
+	while (std::getline(input,line))
+	{
+		std::stringstream linestream(line);
+		linestream >> protein1 >> protein2 >> escore;
+		output << protein1 <<"\t" << protein2 <<"\t1.000" << std::endl;
+	}
+	input.close();
+	output.close();
 }
 
 template<typename NetworksType,typename MyOption>
