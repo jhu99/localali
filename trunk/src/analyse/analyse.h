@@ -47,13 +47,16 @@ public:
 	void parseTermFile(std::ifstream&,std::unordered_map<std::string,bool>&);
 	void countPrediction(std::string);
 	void countVerification(std::string,CrossVerification&);
-	void countCrossVerification(std::string,int,int);
+	void countCrossVerification(std::string,int);
 	void verifyPrediction(std::string);
 	void verifyComplexes(std::string);
 	void readNonredundantComplexes(Complex&);
 	void checkPurity(Complex&);
 	bool isOverlaped(Subnetwork*,Complex&);
 	void writeAlignmentFile(NetworkType&,Alignment*,std::string,int);
+	void reduceRedundancy(NetworkType&,std::string, int);
+	void timecheck(std::string);
+	void ppvcheck(std::string);
 	struct Compare_Sub
 	{
 		bool operator() (Subnetwork* sub1, Subnetwork* sub2) {return sub1->score > sub2->score;}
@@ -94,19 +97,64 @@ void Analyse<NetworkPoolType>::readIdMap()
 }
 
 template<typename NetworkPoolType>
+void Analyse<NetworkPoolType>::timecheck(std::string folder)
+{
+	std::string line,filename,pattern;
+	filename.append(folder);filename.append("sd_out.txt");
+	std::ifstream input(filename.c_str());
+	float elapsed_time;
+	std::vector<float> all_elapsed_time;
+	pattern.append("real: ");
+	while(std::getline(input,line))
+	{
+		std::size_t found=line.find(pattern);
+		if(found!=std::string::npos)
+		{
+			line=line.substr(found+6,4);
+		}
+		else continue;
+		std::stringstream ss(line);
+		ss >> elapsed_time;
+		std::cout << elapsed_time <<"\t" << std::endl;
+		all_elapsed_time.push_back(elapsed_time);
+	}	
+}
+
+template<typename NetworkPoolType>
+void Analyse<NetworkPoolType>::ppvcheck(std::string folder)
+{
+	std::string line,filename,pattern;
+	filename.append(folder);filename.append("result.txt");
+	std::ifstream input(filename.c_str());
+	float elapsed_time;
+	std::vector<float> all_elapsed_time;
+	pattern.append(": ");
+	while(std::getline(input,line))
+	{
+		if(line[0]=='#')continue;
+		std::size_t found=line.find(pattern);
+		if(found!=std::string::npos)
+		{
+			line=line.substr(found+2,6);
+		}
+		else continue;
+		std::stringstream ss(line);
+		ss >> elapsed_time;
+		std::cout << elapsed_time <<"\t" << std::endl;
+		all_elapsed_time.push_back(elapsed_time);
+	}
+}
+
+template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 {
 	std::string filename1,filename2,filename3,commandline,parameter;
 	GoList golist;
 	std::unordered_map<std::string,bool> ancestormap;
-	golist.readGeneOntology("./dataset/goa/gene_association.goa_target.fsst");
-	filename1.append(folder);filename1.append("function_prediction.txt");
-	filename2.append(folder);filename2.append("verify_prediction.txt");
-	std::ifstream input(filename1),inputlist;
-	std::ofstream output(filename2,std::ofstream::out);
+	golist.readGeneOntology("../crosslink/dataset/goa/gene_association.goa_target_2a.fsst");
 	filename1.clear();
-	filename1="./dataset/goancestors/list.txt";
-	inputlist.open(filename1);
+	filename1="../crosslink/dataset/goancestors/list.txt";
+	std::ifstream inputlist(filename1);
 	std::string line;
 	while(std::getline(inputlist,line))
 	{
@@ -114,6 +162,10 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 		ancestormap[line]=true;
 	}
 	inputlist.close();
+	filename1.clear();filename1.append(folder);filename1.append("function_prediction.txt");
+	filename2.clear();filename2.append(folder);filename2.append("verify_prediction.txt");
+	std::ifstream input(filename1);
+	std::ofstream output(filename2,std::ofstream::out);
 	
 	if(!input.is_open())
 	{
@@ -138,10 +190,10 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 			else if(!golist.go_map[protein].BP.empty())
 			{
 				parameter.clear();
-				filename3.clear();filename3.append("./dataset/goancestors/");filename3.append(goid);filename3.append(".ancestors");
+				filename3.clear();filename3.append("../crosslink/dataset/goancestors/");filename3.append(goid);filename3.append(".ancestors");
 				if(ancestormap.find(filename3)==ancestormap.end())
 				{
-					commandline.clear();commandline.append("./bin/go_ancestor_finder.sh ");commandline.append(goid);system(commandline.c_str());ancestormap[filename3]=true;
+					commandline.clear();commandline.append("../crosslink/bin/go_ancestor_finder.sh ");commandline.append(goid);system(commandline.c_str());ancestormap[filename3]=true;
 				}
 				/*for(auto it=golist.go_map[protein].BP.begin();it!=golist.go_map[protein].BP.end();++it)
 				{
@@ -187,27 +239,33 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::countCrossVerification(std::string folder,int methods, int sample)
+void Analyse<NetworkPoolType>::countCrossVerification(std::string folder,int methods)
 {
 	std::vector<CrossVerification> cvList;
-	for(int i=0;i<3;i++)
+	for(int i=0;i<10;i++)
 	{
 		std::string filename=folder;
-		CrossVerification cv;
-		if(methods==1)
-		filename.append("localali_");
-		else
-		filename.append("netblastm_");
+
+		filename.append("2a-way_");
 		filename.append(convert_num2str(i));
 		if(methods==1){
-		filename.append("/sample_");filename.append(convert_num2str(sample));}
-		filename.append("/verify_prediction.txt");
-		countVerification(filename,cv);
-		cvList.push_back(cv);
+			for(int j=1;j<=20;j++)
+			{
+				CrossVerification cv;
+				filename.clear();filename.append(folder);filename.append("2a-way_");filename.append(convert_num2str(i));
+				filename.append("/sample_");filename.append(convert_num2str(j));filename.append("/verify_prediction.txt");
+				countVerification(filename,cv);
+				cvList.push_back(cv);
+			}
+		}
+		else{
+			CrossVerification cv;
+			filename.append("/verify_prediction.txt");
+			countVerification(filename,cv);
+			cvList.push_back(cv);
+		}
 	}
-	unsigned numspecies=0;
-	numspecies=cvList[0].corrections.size();
-	for(int i=0;i<3;i++)
+	for(unsigned i=0;i<cvList.size();i++)
 	{
 		CrossVerification cv=cvList[i];
 		for(unsigned j=0;j<cv.corrections.size();j++)
@@ -215,18 +273,6 @@ void Analyse<NetworkPoolType>::countCrossVerification(std::string folder,int met
 			std::cout << "species " <<j <<":" << cv.corrections[j] <<"\t" << cv.predictions[j] <<"\t" ;
 			std::cout << std::setprecision(3) << 100*cv.corrections[j]/(1.0*cv.predictions[j])<< std::endl;
 		}
-	}
-	std::cout <<" Summary: " << std::endl;
-	for(unsigned j=0;j<numspecies;j++)
-	{
-		int corrections=0,predictions=0;
-		for(int i=0;i<3;i++)
-		{
-			corrections+=cvList[i].corrections[j];
-			predictions+=cvList[i].predictions[j];
-		}
-		std::cout << "species" << j << ":" << corrections <<"\t" << predictions << "\t" ;
-		std::cout << std::setprecision(3) << 100*corrections/(1.0*predictions)<< std::endl;
 	}
 }
 
@@ -285,7 +331,8 @@ void Analyse<NetworkPoolType>::countPrediction(std::string formatfile)
 				continue;
 			}
 			std::getline(input,line);
-			std::cout << "Species "<< species <<": "<< numPredictions <<" predictions, " << predictionMap.size() <<" proteins" << std::endl;
+			std::cout << "#Species\tPredictions\tProteins\n";
+			std::cout << species <<"\t"<< numPredictions <<"\t" << predictionMap.size() << std::endl;
 			species++;
 			numPredictions=0;
 			predictionMap.clear();continue;
@@ -298,8 +345,10 @@ void Analyse<NetworkPoolType>::countPrediction(std::string formatfile)
 		if(predictionAllMap.find(protein)==predictionAllMap.end())
 			predictionAllMap[protein]=goid;
 	}
-	std::cout << "Species "<< species <<": "<< numPredictions <<" predictions, " << predictionMap.size() <<" proteins" << std::endl;
-	std::cout << "Alignment: "<< numAllPredictions <<" predictions, " << predictionAllMap.size() <<" proteins" <<std::endl;
+	std::cout << "#Species\tPredictions\tProteins\n";
+	std::cout << species <<"\t"<< numPredictions <<"\t" << predictionMap.size() << std::endl;
+	//std::cout << "#Alignment\tPredictions\tProteins\n";
+	//std::cout << numAllPredictions <<"\t"<< predictionAllMap.size() <<"\t"<<std::endl;
 	input.close();
 }
 
@@ -355,6 +404,7 @@ void Analyse<NetworkPoolType>::translate(std::string folder, int speciesnum)
 
 template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::string folder, int speciesnum)
+// translate alignment to individual species without the reduce of redundance.
 {
 	std::vector<std::string> filelist;
 	std::string filename1,filename2;
@@ -374,14 +424,14 @@ void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::s
 		myalignment->readAlignment(folder, filename2, speciesnum);
 		alignmentlist.push_back(myalignment);
 	}
-	std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
+	//std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
 	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
 	{
-		std::vector<Alignment*>::iterator it2=it1+1;
+//		std::vector<Alignment*>::iterator it2=it1+1;
 		writeAlignmentFile(networks,*it1,folder,speciesnum);
 		//(*it1)->writeAlignmentFile(folder,speciesnum, protein_dip_uniprot_map,coveredProteinMap);
 		// write subnetworks for it1;
-		while(it2!=alignmentlist.end())
+		/*while(it2!=alignmentlist.end())
 		{
 			if(checkRedundanteAli(*it1,*it2))
 			{
@@ -390,7 +440,7 @@ void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::s
 			{
 				++it2;
 			}
-		}
+		}*/
 	}
 	numCoveredProtein=coveredProteinMap.size();
 }
@@ -419,19 +469,19 @@ void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 	bool linenum=false;
 	while(getline(input,line))
 	{
+		std::stringstream linestream;
+		if(!linenum)
+		{
+			linenum=true;
+			continue;
+		}
 		std::size_t found = line.find_first_of(",");
 		while (found!=std::string::npos)
 		{
 			line[found]=' ';
 			found=line.find_first_of(",",found+1);
 		}
-		std::stringstream linestream(line);
-		if(!linenum)
-		{
-			linestream >> start >> ss >> score;
-			linenum=true;
-			continue;
-		}
+		linestream.str(line);
 		for(int i=0; i<numspecies; i++)
 		{
 			linestream >> protein;
@@ -461,11 +511,12 @@ void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 		{
 			std::cerr << outfilename <<" is not existed!" << std::endl;
 		}
-		output <<"# score: " << score << std::endl;
+		// output <<"#(score,distanc,dsize,species): " << score << std::endl;
 		for(Iter it=subnetwork->begin();it!=subnetwork->end();++it)
 		{
-			if(protein_dip_uniprot_map.find(it->first)!=protein_dip_uniprot_map.end())
-			output << protein_dip_uniprot_map[it->first] << std::endl;
+			//if(protein_dip_uniprot_map.find(it->first)!=protein_dip_uniprot_map.end())
+			// output << protein_dip_uniprot_map[it->first] << std::endl;
+			output << it->first << std::endl;
 		}
 		output.close();
 	}
@@ -473,6 +524,47 @@ void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 	{
 		delete subnetworks[i];
 	}
+}
+
+template<typename NetworkPoolType>
+void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::string folder, int speciesnum)
+{
+	std::vector<std::string> filelist;
+	std::string filename1,filename2;
+	filename1.append(folder);
+	filename1.append("alignmentfiles.txt");
+	std::ifstream input(filename1.c_str());
+	std::string item;
+	while (std::getline(input,item))
+	{
+		filelist.push_back(item);
+	}
+	input.close();
+	for(unsigned i=0;i<filelist.size();i++)
+	{
+		filename2=filelist[i];
+		Alignment *myalignment=new Alignment();
+		myalignment->readAlignment(folder, filename2, speciesnum);
+		alignmentlist.push_back(myalignment);
+	}
+	std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
+	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
+	{
+		std::vector<Alignment*>::iterator it2=it1+1;
+		if((*it1)->score < 0.5) break;
+		writeAlignmentFile(networks,*it1,folder,speciesnum);
+		while(it2!=alignmentlist.end())
+		{
+			if(checkRedundanteAli(*it1,*it2))
+			{
+				it2=alignmentlist.erase(it2);
+			}else
+			{
+				++it2;
+			}
+		}
+	}
+	numCoveredProtein=coveredProteinMap.size();
 }
 
 template<typename NetworkPoolType>
@@ -562,9 +654,9 @@ void Analyse<NetworkPoolType>::predictFunction(std::string folder,int speciesnum
 	std::vector<std::string> filelist;
 	std::unordered_map<std::string,bool> ancestormap;
 	resultFolder=folder;
-	filename=(folder);filename.append("function_prediction.txt");
+	filename=folder;filename.append("function_prediction.txt");
 	std::ofstream output(filename.c_str());
-	ingolist.open("./dataset/goancestors/list.txt");
+	ingolist.open("/home/mi/jhu/projects/crosslink/dataset/goancestors/list.txt");
 	while(std::getline(ingolist,item))
 	{
 		ancestormap[item]=true;
@@ -654,7 +746,9 @@ void Analyse<NetworkPoolType>::assessQuality(std::string folder,int speciesnum)
 	std::vector<std::string> filelist;
 	std::ifstream input1;
 	std::string item,line,keystr,valstr;
-	bool switcher1,switcher2,isCoherent;
+	//bool switcher1,switcher2;
+	bool isCoherent;
+	std::unordered_map<std::string,bool> idmap;
 	for(int k=0;k<speciesnum;k++)
 	{
 		std::unordered_map<std::string,bool> go_category;
@@ -668,16 +762,22 @@ void Analyse<NetworkPoolType>::assessQuality(std::string folder,int speciesnum)
 		input1.close();
 		numCoherent=0;
 		numDiscovered=filelist.size();
+		//std::cout <<"#Failed subnetwork in species " << k <<std::endl;
 		for(int i=0;i<numDiscovered;i++)
 		{
-			switcher1=false;
-			switcher2=false;
-			isCoherent=true;
+			//switcher1=false;
+			//switcher2=false;
+			isCoherent=false;
 			filename.clear();filename.append(filelist[i]);
 			input1.open(filename.c_str());
 			while(std::getline(input1,line))
 			{
-				if(!switcher1 && !switcher2 )
+				if(line.compare("The genes annotated to this node are:")==0)
+				{
+					isCoherent=true;
+					break;
+				}
+				/*if(!switcher1 && !switcher2 )
 				{
 					if(line.compare("Finding terms for P")==0)
 					{
@@ -711,18 +811,35 @@ void Analyse<NetworkPoolType>::assessQuality(std::string folder,int speciesnum)
 							go_category[valstr]=true;
 						}
 					}
-				}
+				}*/
 			}
 			input1.close();
 			if(isCoherent)numCoherent++;
+			else
+			{
+				unsigned found1,found2,num;
+				found1=filelist[i].find_last_of('_');
+				found2=filelist[i].find_first_of('.');
+				num=found2-found1-1;
+				std::string fileid=filelist[i].substr(found1+1,num);
+				if(idmap.find(fileid)==idmap.end())
+				{
+					idmap[fileid]=true;
+					//std::cout << fileid << "\t";
+				}
+			}
 		}
 		rate=numCoherent/static_cast<float>(numDiscovered);
-		std::cout <<"Species " << k <<":"<< std::endl;
-		std::cout <<"The number of discovered subnetworks:" << numDiscovered << std::endl;
-		std::cout << "The number of coherent subnetworks they cover: " << numCoherent << std::endl;
-		std::cout << "The number of distinct GO categories they cover: " << go_category.size() << std::endl;
-		std::cout << std::setprecision(3) << "The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
+		/*std::cout <<"#Species " << k <<":"<< std::endl;
+		std::cout <<"#The number of discovered subnetworks:" << numDiscovered << std::endl;
+		std::cout << "#The number of coherent subnetworks they cover: " << numCoherent << std::endl;
+		std::cout << "#The number of distinct GO categories they cover: " << go_category.size() << std::endl;
+		std::cout << std::setprecision(3) << "#The percent of functionally coherent subnetworks discovered: "<< 100*rate <<"%" << std::endl;
+		*/
+		std::cout << numDiscovered << "\t" << numCoherent << "\t";
+		std::cout << std::setprecision(3) << 100*rate << std::endl;
 	}
+	std::cout << std::endl;
 }
 
 template<typename NetworkPoolType>
@@ -763,9 +880,10 @@ inline void Analyse<NetworkPoolType>::checkPurity(Complex& mycomplex) {
 			pureSubnetwork++;
 		}
 	}
-	std::cout <<"Reported subnetworks:" << sublist.size() << std::endl;
-	std::cout <<"Pure subnetworks:" << pureSubnetwork << std::endl;
-	std::cout <<"Success rate:" << pureSubnetwork/(1.0*sublist.size()) << std::endl;
+	//std::cout <<"Reported subnetworks:" << sublist.size() << std::endl;
+	//std::cout <<"Pure subnetworks:" << pureSubnetwork << std::endl;
+	//std::cout <<"Success rate:" << pureSubnetwork/(1.0*sublist.size()) << std::endl;
+	std::cout << pureSubnetwork << "\t" << pureSubnetwork/(1.0*sublist.size()) << std::endl;
 }
 
 template<typename NetworkPoolType>
@@ -794,10 +912,10 @@ inline bool Analyse<NetworkPoolType>::isOverlaped(Subnetwork* subnet, Complex& m
 			}
 		}
 	}
-	unsigned minSize=mycomplex.complexMap[maxId].proteinlist.size();
-	if(minSize > subnet->proteinlist.size())
-		minSize=subnet->proteinlist.size();
-	float rate=maxnum/static_cast<float>(minSize);
-	return rate>=0.5;
+	unsigned maxSize=mycomplex.complexMap[maxId].proteinlist.size();
+	if(maxSize < subnet->proteinlist.size())
+		maxSize=subnet->proteinlist.size();
+	float rate=maxnum/static_cast<float>(maxSize);
+	return rate>=0.2;
 }
 #endif

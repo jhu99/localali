@@ -76,11 +76,10 @@ void Complex::readComplexes(std::string& filename)
 				proteinKeyMap[item]=complexInstance.complexId;
 			}
 			if(complexInstance.proteinlist.size()<3)continue;
-			if(complexInstance.organism.compare("Human")==0 ||
-			   complexInstance.organism.compare("Mouse")==0)
+			if(complexInstance.organism.compare("Human")==0)
 			complexMap[complexInstance.complexId]=complexInstance;
 		}
 	}
-	std::cout << "Real protein complexes in CORUM: "<< complexMap.size() << std::endl;
+	std::cout << "# Real protein complexes in CORUM: "<< complexMap.size() << std::endl;
 }
 #endif

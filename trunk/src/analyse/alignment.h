@@ -29,7 +29,8 @@ public:
 							std::unordered_map<std::string,int>&);
 	AlignmentMap alignmap;
 	std::string alignmentfile;
-	float score;
+	float score,distance;
+	int dsize,speciesnum;
 };
 
 
@@ -51,19 +52,23 @@ void Alignment::readAlignment(std::string folder, std::string filename, int nums
 	bool linenum=false;
 	while(std::getline(input,line))
 	{
+		std::stringstream streamline(line);
+		if(!linenum)
+		{
+			std::size_t found=line.find_first_of(":");
+			line = line.substr(found+2);
+			streamline.str(line);
+			streamline >> score >> distance >> dsize >> speciesnum;
+			linenum=true;
+			continue;
+		}
 		std::size_t found = line.find_first_of(",");
 		while (found!=std::string::npos)
 		{
 			line[found]=' ';
 			found=line.find_first_of(",",found+1);
 		}
-		std::stringstream streamline(line);
-		if(!linenum)
-		{
-			streamline >> start >> ss >> score;
-			linenum=true;
-			continue;
-		}
+		streamline.str(line);
 		for(int i=0; i < numspecies; i++)
 		{
 			streamline >> protein;

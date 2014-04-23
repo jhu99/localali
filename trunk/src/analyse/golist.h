@@ -66,8 +66,8 @@ bool GoList::readGeneOntology(const char* filename)
     }
 
     /// If GO_term was inferred from IEA or ISS, ignore it.
-    if(gorecord[2].compare("IEA")==0 ||gorecord[2].compare("ISS")==0)
-      continue; 
+    //if(gorecord[2].compare("IEA")==0 ||gorecord[2].compare("ISS")==0)
+      //continue; 
     GOntology& record=go_map[gorecord[0]];
     if(gorecord[3].compare("C")==0)
     {

@@ -142,8 +142,8 @@ bool
 bool
 	Module::isHigherLevel(std::string goid, std::unordered_map<std::string,bool>& ancestormap)
 {
-	std::string filename,goterm,line,commandline("./bin/go_ancestor_finder.sh ");
-	filename.append("./dataset/goancestors/");
+	std::string filename,goterm,line,commandline("../crosslink/bin/go_ancestor_finder.sh ");
+	filename.append("../crosslink/dataset/goancestors/");
 	filename.append(goid);
 	filename.append(".ancestors");
 	if(ancestormap.find(filename)==ancestormap.end())

@@ -1,3 +1,4 @@
+# Please specify the directory where the dataset located in. 
 folder ../crosslink/dataset/intact10022014/3-way/
 species 1-human9606
 species 2-worm6239

@@ -2,7 +2,7 @@ OS = $(shell uname -s)
 CXX = g++-4.6
 DEBUG = yes
 
-# Default mode is "Release"
+# Default mode is "Debug"
 DEFAULT_MODE  = Debug
 MODE         ?= $(DEFAULT_MODE)
 

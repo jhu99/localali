@@ -73,11 +73,10 @@ cd $LOCALALI/include/lemon-1.2.3/
 2. Compile LOCALALI
 
 cd $LOCALALI
-mkdir bin
 ./make MODE=Release
 #If you want to compile it in Debug mode, run command:
 ./make (MODE=Debug)
-#The binary code will be in the folder ./$LOCALALI/bin after compilation.
+#The binary code will be in the folder ./$LOCALALI after compilation.
 
 #if you want to compile it with other compilers such as g++-4.7, do it like this:
 ./make MODE=Release CXX=g++-4.7
@@ -108,72 +107,80 @@ layers  input_blast.txt
 tree    tree.txt
 --------------END OF PROFILE--------------
 
-The specified filenames which are needed by localali would be:
-./dataset/3-way/Celeg201300707-int.txt
-./dataset/3-way/Dmela20130707-int.txt
-./dataset/3-way/Scere20130707-int.txt
+The specified filenames which are required by localali are:
+./dataset/3-way/Celeg201300707.txt
+./dataset/3-way/Dmela20130707.txt
+./dataset/3-way/Scere20130707.txt
 ./dataset/3-way/input_blast.txt
 ./dataset/3-way/tree.txt
 
 Interactions of each species are in three-column tab-delimited format (INTERACTOR_A INTERACTOR_B score) as follows (the third column is not necessary):
 --------------BEGIN OF NETWORK--------------
-DIP-1016N       DIP-250N        0.9
-DIP-244N        DIP-1016N       0.9
-DIP-1014N       DIP-926N        0.9
-DIP-25958N      DIP-25445N      0.9
-DIP-25958N      DIP-24681N      0.9
-DIP-26515N      DIP-25958N      0.9
-DIP-25958N      DIP-25384N      0.9
-DIP-27373N      DIP-24569N      0.9
-DIP-24673N      DIP-24569N      0.9
-DIP-24569N      DIP-24676N      0.9
+O43521	Q07820	0.40
+P05556	P07948	0.43
+P05556	P13612	0.66
+P07948	P13612	0.43
+2609382	P40763	0.40
+P17947	Q15156	0.54
 --------------END OF NETWORK--------------
 
-The layered graph will be constructed through these homologous proteins. The third column is evalue but bit-score is also supported.
+The layered graph will be constructed through these homologous proteins (with evalue <1e-07). It looks as follows (the third column is not necessary):
 --------------BEGIN OF HOMOLOGY--------------
-DIP-24593N      DIP-5N  8e-14
-DIP-24593N      DIP-5N  2e-10
-DIP-24593N      DIP-5N  4e-08
-DIP-24797N      DIP-5N  3e-08
-DIP-25131N      DIP-5N  2e-29
-DIP-25131N      DIP-5N  4e-27
-DIP-25131N      DIP-5N  1e-24
-DIP-25131N      DIP-5N  4e-24
-DIP-25131N      DIP-5N  2e-23
-DIP-25131N      DIP-5N  9e-22
+P31946	Q20655	9e-146
+P31946	P41932	2e-137
+P62258	Q20655	5e-121
+P41932	P62258	5e-113
+Q04917	Q20655	9e-133
+P41932	Q04917	1e-126
+P61981	Q20655	2e-132
+P41932	P61981	8e-129
+P27348	Q20655	4e-138
+P27348	P41932	2e-132
 --------------END OF HOMOLOGY--------------
 
 2. other option in Usage
 
 Usage:
-  ./bin/localali -version|-alignment|-analyse|-format [--help|-h|-help]
+  ./localali -version|-alignment|-analyse|-format [--help|-h|-help]
+     [-alpha num] [-beta num] [-extdist1 int] [-extdist2 int]
      [-formatfile str] [-maxext int] [-method int] [-minext int]
-     [-numconnected int] [-numsamples int] [-numspecies int]
-     [-numthreads int] [-parallel] [-profile str] [-resultfolder str]
-     [-score_threshold num] [-seedsize int] [-seedtries int] [-task int]
+     [-numconnected int] [-numseeds int] [-numspecies int]
+     [-numspinetries int] [-numthreads int] [-parallel] [-profile str]
+     [-resultfolder str] [-score_threshold num] [-seedrep int]
+     [-seedsize int] [-seedtries int] [-task int] [-verbose int]
 Where:
   --help|-h|-help
      Print a short help message
   -alignment
      Execute the alignment algorithm.
+  -alpha num
+     Impact factor of the evolutionary rate. Default is 0.2
   -analyse
      Make analysis on the alignment results.
+  -beta num
+     The second impact factor of the evolutionary rate of interactions. Default is 2.0.
+  -extdist1 int
+     Distance of neighbors in the search for seeds. Default is 1.
+  -extdist2 int
+     Distance of neighbors in the search for subnets. Default is 2.
   -format
      Process input or output file into proper format.
   -formatfile str
      Input file which is used to analyse the quality of alignments.
   -maxext int
-     Maximal number of the extension . Default is 12.
+     Maximal number of the extension. Default is 12.
   -method int
      Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.
   -minext int
-     Minimal number of the extension . Default is 11.
+     Minimal number of the extension. Default is 11.
   -numconnected int
      Number of connected subnetwork. Default is 3.
-  -numsamples int
-     Number of sampled seeds. Default is 1000.
+  -numseeds int
+     Number of refined seeds. Default is 200.
   -numspecies int
      Number of the species compared. Default is 3.
+  -numspinetries int
+     Number of tries for strongly connected spines. Default is 5.
   -numthreads int
      Number of threads. Default is 1.
   -parallel
@@ -184,12 +191,16 @@ Where:
      Configuration of various input parameters.
   -score_threshold num
      Score threshold of subnets which are qualified. Default is 0.2.
+  -seedrep int
+     Allow protein replicatioin in refined seeds. Default is 0.
   -seedsize int
-     Size of the seeds. Default is 3.
+     Size of the seeds. Default is 2.
   -seedtries int
      Number of tries for each refined seeds. Default is 1.
   -task int
      Specify the task of each method. Default is 0.
+  -verbose int
+     Display standard output levle:0-3. Default is 0.
   -version
      Show the version number.
 
@@ -200,20 +211,13 @@ cd $LOCALALI
 mkdir ./result 
 # The alignment results will be in this folder.
 
-1. Perform LocalAli on the 3-way alignment with command:
+Perform LocalAli on the 3-way alignment with command:
+
 mkdir ./result/3-way
 mkdir ./result/3-way/alignments
-./bin/localali -alignment -parallel -numthreads 16 -numsamples 4000 -numspecies 3 -score_threshold 0.2 -resultfolder result/3-way/ -numconnected 3 -seedtries 3 -minext 11 -maxext 12 -profile ./profile_3.txt
+set the directory of the dataset in ./profile_3.txt.
+./localali -alignment -parallel -numthreads 16 -numspinetries 20 -numspecies 3 -numseeds 2000 -score_threshold 0.3 -resultfolder ./result/3-way -seedtries 2 -minext 3 -maxext 13 -profile ./profile_3.txt -verbose 1 -extdist1 2 -extdist2 2 -seedrep 1 
 
-2. Perform LocalAli on the 5-way alignment with command:
-mkdir ./result/5-way
-mkdir ./result/5-way/alignments
-./bin/localali -alignment -parallel -numthreads 16 -numsamples 3000 -numspecies 5 -score_threshold 0.2 -resultfolder result/5-way/ -numconnected 3 -seedtries 2 -minext 11 -maxext 12 -profile ./profile_5.txt
-
-2. Perform LocalAli on the 5-way alignment with command:
-mkdir ./result/7-way
-mkdir ./result/7-way/alignments
-./bin/localali -alignment -parallel -numthreads 16 -numsamples 500 -numspecies 7 -score_threshold 0.1 -resultfolder result/7-way/ -numconnected 5 -seedtries 1 -minext 11 -maxext 12 -profile ./profile_7.txt
 
 ################################################################################
 END
