@@ -6,7 +6,8 @@ Date: 11.06.2012*/
 #define MACRO_H_
 const unsigned RESERVED_SPECIES=7;
 const unsigned NUM_PROTEIN_ENRICHED=3;
-const unsigned NUM_GOTERM_LEVEL=4;
+const unsigned NUM_GOTERM_LEVEL=3;
+const unsigned NUM_COMPLEXES=500;
 const int NUM_GAP_EDGE=1;
-const int NUM_GOA_PARTS=3;
+const int NUM_GOA_PARTS=10;
 #endif //MACRO_H_

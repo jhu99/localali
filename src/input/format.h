@@ -4,6 +4,7 @@ Data: 30.09.2013*/
 #ifndef FORMAT_H_
 #define FORMAT_H_
 #include <vector>
+#include <array>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -28,6 +29,8 @@ class Format
 	void partitionGOA(std::string);
 	void generateAlignNemoPPI(std::string);
 	void generateAlignNemoSim(std::string);
+	void convertAlignNemoNif(std::string,NetworksType& networks);
+	void convertNetBlastProp(std::string,NetworksType& networks);
 	int numspecies;
 };
 
@@ -74,12 +77,130 @@ void Format<NetworksType,MyOption>::generateAlignNemoSim(std::string inputfilena
 }
 
 template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder,NetworksType& networks)
+{
+	std::string summaryFilename,line,nodeline,
+		alignmentfile,filename,alignmentNodeString,protein1,protein2;
+	int numNode;
+	double alignmentScore;
+	summaryFilename.append(resultfolder);
+	summaryFilename.append("output/results_summary.txt");
+	std::ifstream input(summaryFilename.c_str());
+	std::ofstream output1;
+	std::ifstream inputAlignment;
+	std::getline(input,line);// skip header line.
+	std::string filename1;
+	while(std::getline(input,line))
+	{
+		std::stringstream linestream(line);
+		alignmentfile.clear();alignmentfile.append(resultfolder);
+		linestream >> filename >> numNode >> alignmentScore;
+		alignmentfile.append("output/");
+		alignmentfile.append(filename);
+		inputAlignment.open(alignmentfile.c_str());
+		filename1.clear();filename1.append(resultfolder);
+		filename1.append("alignments/");filename1.append(filename);
+		output1.open(filename1.c_str());
+		output1 << "#score:\t" << alignmentScore << std::endl;
+		for(int i=0;i<numNode;i++)
+		{
+			std::getline(inputAlignment,nodeline);
+			unsigned pos=nodeline.find_first_of("/");
+			protein1=nodeline.substr(0,pos);
+			protein2=nodeline.substr(pos+1);
+			output1 << protein1 << "\t" << protein2 << std::endl;
+		}
+		output1.close();
+		inputAlignment.close();
+	}
+	input.close();
+}
+
+template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfolder, NetworksType& networks)
+{
+	typedef std::vector<std::string> ProteinList;
+	std::array<ProteinList*, NUM_COMPLEXES> complexes;
+	std::array<float, NUM_COMPLEXES> complexesscore;
+	std::string alignmentfile,line,protein1,protein2,filename1,filename2;
+	alignmentfile.append(resultfolder);
+	alignmentfile.append("output/network.prop");
+	filename1.append(resultfolder);
+	filename2.append(resultfolder);
+	filename1.append("output/score.txt");
+	std::ifstream input(alignmentfile.c_str());
+	std::ofstream output1,output2;
+	std::getline(input,line);// skip header line
+	int complexid,maxid;
+	float alignmentscore;
+	maxid=0;
+	for(unsigned i=0;i<NUM_COMPLEXES;i++)
+	{
+		complexes[i]=new ProteinList();
+	}
+	while(std::getline(input,line))
+	{
+		std::size_t pos=line.find_first_of("|=:()");
+		while(pos!=std::string::npos)
+		{
+			line[pos]=' ';
+			pos=line.find_first_of("|=:()",pos+1);
+		}
+		std::stringstream streamline(line);
+		streamline >> protein1 >> protein2;
+		std::unordered_map<int,bool> complexidmap;
+		while(!streamline.eof())
+		{
+			streamline >> complexid;
+			if(maxid<complexid) maxid=complexid;
+			if(complexidmap.find(complexid)!=complexidmap.end())continue;
+			else complexidmap[complexid]=true;
+			complexes[complexid]->push_back(protein1);
+			complexes[complexid]->push_back(protein2);
+		}
+	}
+	input.close();
+	complexid=1;
+	std::ifstream input1(filename1.c_str());
+	while(std::getline(input1,line))
+	{
+		std::size_t pos=line.find_first_of(":");
+		line = line.substr(pos+2);
+		std::stringstream streamline(line);
+		streamline >> alignmentscore;
+		complexesscore[complexid]=alignmentscore;
+		complexid++;
+	}
+	input1.close();
+	for(int i=1;i<=maxid;i++)
+	{
+		filename1.clear();filename1.append(resultfolder);filename1.append("alignments/ucomplex_");
+		filename1.append(convert_num2str(i));filename1.append(".txt");
+		output1.open(filename1.c_str());
+		output1 << "#score:\t" << complexesscore[i] << std::endl;
+		int tsize=complexes[i]->size();
+		for(int j=0;j<tsize;j++)
+		{
+			output1 << complexes[i]->at(j) <<"\t" << complexes[i]->at(j+1) << std::endl;
+			j=j+1;
+		}
+		output1.close();
+	}
+}
+
+template<typename NetworksType,typename MyOption>
 void Format<NetworksType,MyOption>::extractInteractions()
 {
 	std::string filename1,filename2;
-	std::vector<std::string> filelist;			
-	filelist.push_back("Celeg20130707");			filelist.push_back("Dmela20130707");			filelist.push_back("Ecoli20130707");			filelist.push_back("Hpylo20130707");
-	filelist.push_back("Hsapi20130707");			filelist.push_back("Mmusc20130707");			filelist.push_back("Rnorv20130707");			filelist.push_back("Scere20130707");
+	std::vector<std::string> filelist;
+	filelist.push_back("Celeg20130707");
+	filelist.push_back("Dmela20130707");
+	filelist.push_back("Ecoli20130707");
+	filelist.push_back("Hpylo20130707");
+	filelist.push_back("Hsapi20130707");
+	filelist.push_back("Mmusc20130707");
+	filelist.push_back("Rnorv20130707");
+	filelist.push_back("Scere20130707");
 	for(unsigned i=0; i<filelist.size(); ++i)
 	{
 		filename1.clear();
@@ -363,16 +484,14 @@ void Format<NetworksType,MyOption>::partitionGOA(std::string filename)
 	std::string outfilename,line;
 	for(int i=0;i<NUM_GOA_PARTS;i++)
 	{
-		outfilename="./dataset/goa/partition/gene_association.goa_target_";
+		outfilename="../crosslink/dataset/goa/partition/gene_association.goa_target_";
 		outfilename.append(convert_num2str(i));
 		outputs[i].open(outfilename);
 	}
 	int mod=0;
 	while(std::getline(input,line))
 	{
-		if(linenum < 49493) mod=0;
-		else if(linenum < 2*49493) mod=1;
-		else mod=2;
+		mod=linenum%NUM_GOA_PARTS;
 		outputs[mod] << line << std::endl;
 		linenum++;
 	}

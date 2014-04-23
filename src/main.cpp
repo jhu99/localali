@@ -44,12 +44,15 @@ typedef struct _Option
   int seedtries;
   int minext;
   int maxext;
+  int extdist1;
+  int extdist2;
   int numseeds;
   int numconnected;
   int numthreads;
   int numspinetries;
   int verbose;
   bool parallel;
+  int seedReplication;
   _Option()
   {
     profile="./profile.txt";
@@ -60,15 +63,18 @@ typedef struct _Option
     seedtries=1;
 	minext=6;
 	maxext=13;
+	extdist1=1;
+	extdist2=2;
     numseeds=400;
     numconnected=3;
     numthreads=1;
 	score_threshold=0.2;
 	numspinetries=5;
 	verbose=0;
-	beta=1.0;
+	beta=2.0;
 	alpha=0.2;
 	parallel=false;
+	seedReplication=0;
   }
 }Option;
 
@@ -86,15 +92,15 @@ bool setParser(ArgParser& parser, Option& myoption)
 {
 	parser
 	.boolOption("version","Show the version number.")
-  .boolOption("alignment","Execute the alignment algorithm.")
-  .boolOption("analyse","Make analysis on the alignment results.")
-  .boolOption("format","Process input or output file into proper format.")
+	.boolOption("alignment","Execute the alignment algorithm.")
+	.boolOption("analyse","Make analysis on the alignment results.")
+	.boolOption("format","Process input or output file into proper format.")
 	.optionGroup("method","version")
-  .optionGroup("method","alignment")
-  .optionGroup("method","analyse")
-  .optionGroup("method","format")
-  .onlyOneGroup("method")
-  .mandatoryGroup("method")
+	.optionGroup("method","alignment")
+	.optionGroup("method","analyse")
+	.optionGroup("method","format")
+	.onlyOneGroup("method")
+	.mandatoryGroup("method")
 	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
 	.refOption("method","Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.", myoption.method)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
@@ -103,17 +109,20 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 2.", myoption.seedsize)
-	.refOption("minext","Minimal number of the extension . Default is 11.", myoption.minext)
-	.refOption("maxext","Maximal number of the extension . Default is 12.", myoption.maxext)
+	.refOption("minext","Minimal number of the extension. Default is 11.", myoption.minext)
+	.refOption("maxext","Maximal number of the extension. Default is 12.", myoption.maxext)
+	.refOption("extdist1","Distance of neighbors in the search for seeds. Default is 1.", myoption.extdist1)
+	.refOption("extdist2","Distance of neighbors in the search for subnets. Default is 2.", myoption.extdist2)
 	.refOption("numconnected","Number of connected subnetwork. Default is 3.", myoption.numconnected)
 	.refOption("numseeds","Number of refined seeds. Default is 200.", myoption.numseeds)
 	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
 	.refOption("numspinetries","Number of tries for strongly connected spines. Default is 5.", myoption.numspinetries)
 	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
-	.refOption("alpha","Impact factor of the evolutionary rate. Default is 0.5", myoption.alpha)
-	.refOption("beta","The second impact factor of the evolutionary rate of interactions. Default is 1.0.", myoption.beta)
+	.refOption("alpha","Impact factor of the evolutionary rate. Default is 0.2", myoption.alpha)
+	.refOption("beta","The second impact factor of the evolutionary rate of interactions. Default is 2.0.", myoption.beta)
 	.refOption("verbose","Display standard output levle:0-3. Default is 0.", myoption.verbose)
-	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel);
+	.refOption("parallel","Run LocalAli in parallel if it is true. Default is false.", myoption.parallel)
+	.refOption("seedrep","Allow protein replicatioin in refined seeds. Default is false.", myoption.seedReplication);
 	return true;
 }
 
@@ -200,6 +209,16 @@ int main(int argc, char** argv)
 		{
 			myformat.generateAlignNemoSim(myoption.formatfile);
 		}
+		else if(myoption.task==9)
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			myformat.convertAlignNemoNif(myoption.resultfolder,networks);
+		}
+		else if(myoption.task==10)
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			myformat.convertNetBlastProp(myoption.resultfolder,networks);
+		}
 	}
 	else if(myparser.given("analyse"))
 	{
@@ -220,8 +239,9 @@ int main(int argc, char** argv)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant alignments;
 		{
 			networks.initNetworkPool(myoption.networkfiles);
-			myanalyse.readIdMap();
-			myanalyse.translate_alignment(networks, myoption.resultfolder,myoption.numspecies);
+			//myanalyse.readIdMap();
+			//myanalyse.translate_alignment(networks, myoption.resultfolder,myoption.numspecies);
+			myanalyse.reduceRedundancy(networks, myoption.resultfolder,myoption.numspecies);
 			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
 		}else if(myoption.task==3)
 		{
@@ -234,15 +254,23 @@ int main(int argc, char** argv)
 		}
 		else if(myoption.task==5)
 		{
-			//myanalyse.countCrossVerification(myoption.resultfolder, myoption.method,myoption.numsamples);
+			myanalyse.countCrossVerification(myoption.resultfolder, myoption.method);
 		}
 		else if(myoption.task==6)
 		{
-			myanalyse.verifyPrediction(myoption.formatfile);
+			myanalyse.verifyPrediction(myoption.resultfolder);
 		}
 		else if(myoption.task==7)
 		{
 			myanalyse.verifyComplexes(myoption.formatfile);
+		}
+		else if(myoption.task==8)
+		{
+			myanalyse.timecheck(myoption.resultfolder);
+		}
+		else if(myoption.task==9)
+		{
+			myanalyse.ppvcheck(myoption.resultfolder);
 		}
 	}
 	t.stop();

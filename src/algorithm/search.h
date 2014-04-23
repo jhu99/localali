@@ -27,7 +27,6 @@ Description: Searching high-scoring subnetworks.
 #include <omp.h>
 #include "algorithm/score.h"
 #include <unordered_map>
-//#include <assert.h>
 
 template<typename NP, typename SN, typename LG, typename OP>
 class Search
@@ -66,6 +65,8 @@ public:
     int _numValidNodes;
 	int _minExt;
 	int _maxExt;
+	int _extDist1;
+	int _extDist2;
     int _numExtension;
     int _numConnected;
     int _numthreads;
@@ -76,6 +77,7 @@ public:
 	std::string _resultfolder;
 	std::string _treefile;
 	std::vector<std::string> _speciesfiles;
+	int _seedRep;
     
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution;
@@ -107,6 +109,7 @@ public:
 		std::vector<Node> exclCandidates;//ExclCandidates  V'UN(V')
 		std::unordered_map<int,bool> usedValidNodes;
 		std::unordered_map<std::string,bool> secondaryNeighbors;
+		std::unordered_map<std::string,bool> firstNeighbors;
 		std::vector<std::string> innerproteins;
 		std::vector<std::string> neighborproteins;
 		std::vector<std::string> nodeset,xspine;
@@ -259,6 +262,8 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_numExtension=myoption.minext;
 	_minExt=myoption.minext;
 	_maxExt=myoption.maxext;
+	_extDist1=myoption.extdist1;
+	_extDist2=myoption.extdist2;
 	_resultfolder=myoption.resultfolder;
 	_numthreads=myoption.numthreads;
 	_treefile=myoption.treefile;
@@ -267,6 +272,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_numSpinetries=myoption.numspinetries;
 	_alpha=myoption.alpha;
 	_beta=myoption.beta;
+	_seedRep=myoption.seedReplication;
 }
 
 template<typename NP, typename SN, typename LG, typename OP>
@@ -954,7 +960,7 @@ void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myP
 	myPrivateVariablePlus.element.clear();
 	myPrivateVariablePlus.element.append(_resultfolder);
 	myPrivateVariablePlus.element.append("alignments/ucomplex_");
-	myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.si));
+	myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.outnum));
 	myPrivateVariablePlus.element.append(".txt");
 	fout.open(myPrivateVariablePlus.element.c_str());
 	outsubgraphs(layergraph,myPrivateVariablePlus,fout);
@@ -964,12 +970,12 @@ void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myP
 template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
-	fout <<"# (score,distance,dsize,species): " << myPrivateVariablePlus.overallScore << "\t" << myPrivateVariablePlus.sumDist <<
+	fout <<"#(score,distance,dsize,species): " << myPrivateVariablePlus.overallScore << "\t" << myPrivateVariablePlus.sumDist << "\t" <<
 	 myPrivateVariablePlus.phylogeny._dsize << "\t" << _numSpecies << "\n";
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
 	{
 		std::cout << myPrivateVariablePlus.outnum<<"\t"<<myPrivateVariablePlus.sumDist << "\t"
-				<<myPrivateVariablePlus.phylogeny._dsize << "\t" << _numSpecies << std::endl;
+				<<myPrivateVariablePlus.phylogeny._dsize <<"\t"<< myPrivateVariablePlus.overallScore << "\t" << _numSpecies << std::endl;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	{
@@ -1051,7 +1057,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	{
 		std::cout <<"# Number of subnets:" << csize << std::endl;
 		//std::cout << "Threshold: " << _score_threshold << std::endl;
-		std::cout <<"# Subnet\tTree_Distance\tKSpine\tSpecies"<<std::endl;
+		std::cout <<"# Subnet\tTree_Distance\tKSpine\tScore\tSpecies"<<std::endl;
 	}
 
 	PrivateVariablePlus myPrivateVariablePlus;
@@ -1512,7 +1518,7 @@ Search<NP,SN,LG,OP>::sampleSeedParallel(PrivateVariable& myPrivateVariable, Laye
 					std::cerr <<"Invalid sample node!"<<std::endl;
 					return false;
 				}
-			}while(!isStronglyConnected(myPrivateVariable,layergraph,networks));
+			}while(!isStronglyConnected_1(myPrivateVariable,layergraph,networks));
 			if(myPrivateVariable.num > _numSpinetries)
 				return false;
 			myPrivateVariable.candidates.erase(myPrivateVariable.candidates.begin()+myPrivateVariable.dice_roll_e);
@@ -1597,18 +1603,23 @@ Search<NP,SN,LG,OP>::isStronglyConnected_1(PrivateVariable& myPrivateVariable,La
 		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
 		myPrivateVariable.gd=networks.getGraph(myPrivateVariable.ej);
 		myPrivateVariable.myBfs=myPrivateVariable.bfsList[myPrivateVariable.ej];
-		omp_set_lock(&myLock);
+		//omp_set_lock(&myLock);
 		myPrivateVariable.myBfs->init();
 		myPrivateVariable.myBfs->addSource((*myPrivateVariable.gd->invIdNodeMap)[myPrivateVariable.protein1]);
 		while(!myPrivateVariable.myBfs->emptyQueue())
 		{
 			myPrivateVariable.rnode=myPrivateVariable.myBfs->processNextNode();
-			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>1)break;
+			if(_seedRep!=0)
+			{
+				if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)==0)
+				continue;
+			}
+			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>_extDist1)break;
 			myPrivateVariable.secondaryNeighbors[(*myPrivateVariable.gd->label)[myPrivateVariable.rnode]]=true;
 			if(g_verbosity>=VERBOSE_DEBUG)
 				std::cout << (*myPrivateVariable.gd->label)[myPrivateVariable.rnode] << std::endl;
 		}
-		omp_unset_lock(&myLock);
+		//omp_unset_lock(&myLock);
 	}
 
 	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
@@ -1617,10 +1628,14 @@ Search<NP,SN,LG,OP>::isStronglyConnected_1(PrivateVariable& myPrivateVariable,La
 		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.mysubnet->net_spines.size();myPrivateVariable.sj++)
 		{
 			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.mysubnet->net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
+			myPrivateVariable.indicator=true;
+			//omp_set_lock(&myLock);
 			if(myPrivateVariable.secondaryNeighbors.find(myPrivateVariable.protein2)==myPrivateVariable.secondaryNeighbors.end())
 			{
-				return false;
+				myPrivateVariable.indicator=false;
 			}
+			//omp_unset_lock(&myLock);
+			if(!myPrivateVariable.indicator)return false;
 		}
 	}
 	return true;
@@ -1671,6 +1686,7 @@ bool
 Search<NP,SN,LG,OP>::isStronglyConnected_3(PrivateVariable& myPrivateVariable,LayerGraph& layergraph,NetworkPool& networks)
 {
 	myPrivateVariable.secondaryNeighbors.clear();
+	myPrivateVariable.firstNeighbors.clear();
 	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
 	{
 		myPrivateVariable.protein1=layergraph.node2label[myPrivateVariable.pspine.data[myPrivateVariable.ej]];
@@ -1681,26 +1697,38 @@ Search<NP,SN,LG,OP>::isStronglyConnected_3(PrivateVariable& myPrivateVariable,La
 		while(!myPrivateVariable.myBfs->emptyQueue())
 		{
 			myPrivateVariable.rnode=myPrivateVariable.myBfs->processNextNode();
-			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>2)break;
-			myPrivateVariable.secondaryNeighbors[(*myPrivateVariable.gd->label)[myPrivateVariable.rnode]]=true;
+			myPrivateVariable.sj=myPrivateVariable.myBfs->dist(myPrivateVariable.rnode);
+			myPrivateVariable.element=(*myPrivateVariable.gd->label)[myPrivateVariable.rnode];
+			if(myPrivateVariable.sj==1)myPrivateVariable.firstNeighbors[myPrivateVariable.element]=true;
+			if(myPrivateVariable.myBfs->dist(myPrivateVariable.rnode)>_extDist2)break;
+			myPrivateVariable.secondaryNeighbors[myPrivateVariable.element]=true;
 			if(g_verbosity>=VERBOSE_DEBUG)
 				std::cout << (*myPrivateVariable.gd->label)[myPrivateVariable.rnode] << std::endl;
 		}
 	}
+	myPrivateVariable.numConnected=0;
+	myPrivateVariable.indicator=true;
 	for(myPrivateVariable.ej=0;myPrivateVariable.ej<_numSpecies;++myPrivateVariable.ej)
 	{
 		myPrivateVariable.nodeid=0;
 		for(myPrivateVariable.sj=0;myPrivateVariable.sj<myPrivateVariable.subnet.net_spines.size();myPrivateVariable.sj++)
 		{
 			myPrivateVariable.protein2=layergraph.node2label[myPrivateVariable.subnet.net_spines[myPrivateVariable.sj].data[myPrivateVariable.ej]];
-			if(myPrivateVariable.secondaryNeighbors.find(myPrivateVariable.protein2)!=myPrivateVariable.secondaryNeighbors.end())
+			if(myPrivateVariable.firstNeighbors.find(myPrivateVariable.protein2)!=myPrivateVariable.firstNeighbors.end())
+			{
+				myPrivateVariable.nodeid=1;
+				myPrivateVariable.numConnected++;
+				break;
+			}
+			else if(myPrivateVariable.secondaryNeighbors.find(myPrivateVariable.protein2)!=myPrivateVariable.secondaryNeighbors.end())
 			{
 				myPrivateVariable.nodeid=1;
 				break;
 			}
 		}
-		if(myPrivateVariable.nodeid==0)return false;
+		if(myPrivateVariable.nodeid==0)myPrivateVariable.indicator=false;
 	}
+	if(!myPrivateVariable.indicator && myPrivateVariable.numConnected < (int)(_numSpecies-1))return false;
 	return true;
 }
 
