@@ -1,0 +1,6 @@
+folder ../crosslink/dataset/intact10022014/3-way/134/
+species 1-human9606
+species 3-fly7227
+species 4-yeast4932
+layers  input_blast.txt
+tree    tree.txt

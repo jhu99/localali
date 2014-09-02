@@ -37,7 +37,7 @@ The source code is freely available under Boost Software License, Version 1.0 at
 Please first compile the lemon graph library before compiling the code of LocalAli.
 Note that this package should be moved to the directory $LOCALALI/include.
 2. GoTermFinder
-This package is necessary only if you want to use "-analyse" option to calculate p-Value of reported alignments.
+This package is necessary only if you want to use "-analyse" option to analyze the Gene Ontology enrichment of reported alignments.
 It can be download at http://search.cpan.org/dist/GO-TermFinder/lib/GO/TermFinder.pm.
 
 ################################################################################
@@ -88,7 +88,7 @@ You can see the detailed option information with option "-h".
 It is noted that there are two options you must specify if you want to run LOCALALI for an alignment task. They are described as follows:
 
 1. -profile
-The default file is "./profile.input", but you can also change the filename and path by "-profile" option.
+The default file is "./profile.txt", but you can also change the filename and path by "-profile" option.
 This file tells the program where to find the input files.
 It is expected to be in two-column tab-delimited format.
 These lines starting with "#" will be seen as comments.
@@ -211,12 +211,12 @@ cd $LOCALALI
 mkdir ./result 
 # The alignment results will be in this folder.
 
-Perform LocalAli on the 3-way alignment with command:
+Perform LocalAli on a test alignment (human-worm-fly) with command:
 
 mkdir ./result/3-way
 mkdir ./result/3-way/alignments
-set the directory of the dataset in ./profile_3.txt.
-./localali -alignment -parallel -numthreads 16 -numspinetries 20 -numspecies 3 -numseeds 2000 -score_threshold 0.3 -resultfolder ./result/3-way -seedtries 2 -minext 3 -maxext 13 -profile ./profile_3.txt -verbose 1 -extdist1 2 -extdist2 2 -seedrep 1 
+set the directory of the dataset in ./profile/profile_test.txt.
+./localali -alignment -parallel -numthreads 16 -numspinetries 20 -numspecies 3 -numseeds 2000 -score_threshold 0.3 -resultfolder ./result/3-way -seedtries 2 -minext 3 -maxext 13 -profile ./profile/profile_test.txt -verbose 1 -extdist1 2 -extdist2 2 -seedrep 1 
 
 
 ################################################################################

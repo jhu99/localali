@@ -1,0 +1,5 @@
+folder ../crosslink/dataset/intact10022014/2-way/47/
+species 4-yeast4932
+species 7-ecoli562
+layers  input_blast.txt
+tree    tree.txt
