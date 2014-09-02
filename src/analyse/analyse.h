@@ -99,8 +99,8 @@ void Analyse<NetworkPoolType>::readIdMap()
 template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::timecheck(std::string folder)
 {
-	std::string line,filename,pattern;
-	filename.append(folder);filename.append("sd_out.txt");
+	std::string line,subline,filename,pattern;
+	filename.append(folder);
 	std::ifstream input(filename.c_str());
 	float elapsed_time;
 	std::vector<float> all_elapsed_time;
@@ -110,7 +110,8 @@ void Analyse<NetworkPoolType>::timecheck(std::string folder)
 		std::size_t found=line.find(pattern);
 		if(found!=std::string::npos)
 		{
-			line=line.substr(found+6,4);
+			subline=line.substr(found+6);
+			line=subline.substr(0,subline.length()-1);
 		}
 		else continue;
 		std::stringstream ss(line);
@@ -123,12 +124,14 @@ void Analyse<NetworkPoolType>::timecheck(std::string folder)
 template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::ppvcheck(std::string folder)
 {
-	std::string line,filename,pattern;
-	filename.append(folder);filename.append("result.txt");
+	std::string line,filename,pattern, head;
+	int numsample;
+	filename.append(folder);
 	std::ifstream input(filename.c_str());
 	float elapsed_time;
 	std::vector<float> all_elapsed_time;
 	pattern.append(": ");
+	std::unordered_map<int,bool> samplemap;
 	while(std::getline(input,line))
 	{
 		if(line[0]=='#')continue;
@@ -137,7 +140,19 @@ void Analyse<NetworkPoolType>::ppvcheck(std::string folder)
 		{
 			line=line.substr(found+2,6);
 		}
-		else continue;
+		else
+		{
+			std::stringstream samplestream(line);
+			samplestream >> head >> numsample;
+			if(samplemap.find(numsample)!=samplemap.end())
+			{
+				std::getline(input,line);
+			}else
+			{
+				samplemap[numsample]=1;
+			}
+			continue;
+		}
 		std::stringstream ss(line);
 		ss >> elapsed_time;
 		std::cout << elapsed_time <<"\t" << std::endl;
@@ -551,7 +566,7 @@ void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::strin
 	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
 	{
 		std::vector<Alignment*>::iterator it2=it1+1;
-		if((*it1)->score < 0.5) break;
+		//if((*it1)->score < 0.5) break;
 		writeAlignmentFile(networks,*it1,folder,speciesnum);
 		while(it2!=alignmentlist.end())
 		{

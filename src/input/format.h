@@ -31,6 +31,7 @@ class Format
 	void generateAlignNemoSim(std::string);
 	void convertAlignNemoNif(std::string,NetworksType& networks);
 	void convertNetBlastProp(std::string,NetworksType& networks);
+	void convertMaWIShHtml(std::string);
 	int numspecies;
 };
 
@@ -84,7 +85,7 @@ void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder
 	int numNode;
 	double alignmentScore;
 	summaryFilename.append(resultfolder);
-	summaryFilename.append("output/results_summary.txt");
+	summaryFilename.append("results_summary.txt");
 	std::ifstream input(summaryFilename.c_str());
 	std::ofstream output1;
 	std::ifstream inputAlignment;
@@ -95,7 +96,6 @@ void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder
 		std::stringstream linestream(line);
 		alignmentfile.clear();alignmentfile.append(resultfolder);
 		linestream >> filename >> numNode >> alignmentScore;
-		alignmentfile.append("output/");
 		alignmentfile.append(filename);
 		inputAlignment.open(alignmentfile.c_str());
 		filename1.clear();filename1.append(resultfolder);
@@ -117,6 +117,47 @@ void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder
 }
 
 template<typename NetworksType,typename MyOption>
+void Format<NetworksType,MyOption>::convertMaWIShHtml(std::string resultfolder)
+{
+	std::string inputname,outputname,line,protein1,protein2;
+	inputname.append(resultfolder);	inputname.append("alignment.html");
+	std::ifstream inputfile(inputname.c_str());
+	int alignmentNum=0;
+	std::ofstream outputfile;
+	while(std::getline(inputfile,line))
+	{
+		std::size_t found1,found2,found3;
+		found1=line.find("<tr><td ><i>Ortholog nodes</i></td></tr>");
+		found2=line.find("<td><a name=");
+		found3=line.find("<tr><td><i>Matching interactions</i></td></tr>");
+		if(found1!=std::string::npos)
+		{
+			alignmentNum++;
+			outputname.clear();
+			outputname.append(resultfolder);
+			outputname.append("alignments/ucomplex_");
+			outputname.append(convert_num2str(alignmentNum));
+			outputname.append(".txt");
+			outputfile.open(outputname.c_str());
+			outputfile <<"#Score: 0.9 36 15	2"<<std::endl;
+		}
+		else if(found2!=std::string::npos)
+		{
+			std::getline(inputfile,line);
+			line.replace(line.find("<td>"),4," ");
+			line.replace(line.find("<td>"),4," ");
+			std::stringstream streamline(line);
+			streamline >> protein1 >> protein2;			
+			outputfile << protein1 <<"\t"<< protein2 << std::endl;
+		}
+		else if(found3!=std::string::npos)
+		{
+			outputfile.close();
+		}
+	}
+}
+
+template<typename NetworksType,typename MyOption>
 void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfolder, NetworksType& networks)
 {
 	typedef std::vector<std::string> ProteinList;
@@ -124,10 +165,10 @@ void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfolder
 	std::array<float, NUM_COMPLEXES> complexesscore;
 	std::string alignmentfile,line,protein1,protein2,filename1,filename2;
 	alignmentfile.append(resultfolder);
-	alignmentfile.append("output/network.prop");
+	alignmentfile.append("output-network.prop");
 	filename1.append(resultfolder);
 	filename2.append(resultfolder);
-	filename1.append("output/score.txt");
+	filename1.append("output-score.txt");
 	std::ifstream input(alignmentfile.c_str());
 	std::ofstream output1,output2;
 	std::getline(input,line);// skip header line
