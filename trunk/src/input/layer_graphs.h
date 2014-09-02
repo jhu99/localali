@@ -19,6 +19,8 @@ class Layer_graphs
 private:
   
   typedef NP NetworkPool;
+  typedef typename NetworkPool::EdgeArray EdgeArray;
+  typedef typename NetworkPool::NodeArray NodeArray;
 public:
   typedef typename NetworkPool::Graph Graph;
   
@@ -47,6 +49,7 @@ public:
   ~Layer_graphs(){};
   bool read(std::string&,NetworkPool&);
   void setConfiguration(Node&);
+  void generateRandKlayer(NetworkPool&,std::string&);
 };
 
 template<typename GR, typename NP>
@@ -142,6 +145,44 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
 	std::cout <<"# of interactions:"<< edgeNum <<std::endl;
   }
   return true;
+}
+
+template<typename GR, typename NP>
+void
+Layer_graphs<GR,NP>::generateRandKlayer(NetworkPool& networks,std::string& randfilename)
+{
+	NodeArray nodelist;
+	EdgeArray edgelist;
+	int i=0;
+	for(NodeIt nodeid(graph);nodeid!=lemon::INVALID;++nodeid)
+	{
+		nodelist[i]=node2label[nodeid];
+		i++;
+	}
+	std::unordered_map<std::string,bool> uniedgemap;
+	 srand (time(NULL));
+	for(i=0;i<edgeNum;i++)
+	{
+		std::string edgecode;
+		int k=rand()%nodeNum;
+		int g=rand()%nodeNum;
+		if(g<k){ int h=k;k=g;g=h;}
+		edgecode.append(convert_num2str(k));edgecode.append(convert_num2str(g));
+		if((g==k) || uniedgemap.find(edgecode)!=uniedgemap.end() || networks.getHost(nodelist[k])==networks.getHost(nodelist[g]))
+		{
+			i--;continue;
+		}
+		
+		edgelist[i].startNode=nodelist[k];
+		edgelist[i].endNode=nodelist[g];
+	}
+	std::string filename(randfilename);
+	std::ofstream output(filename.c_str());
+	for(int m=0;m<edgeNum;m++)
+	{
+		output << edgelist[m].startNode <<"\t" << edgelist[m].endNode <<"\t" << "1.0E-50\n";
+	}
+	output.close();
 }
 
 #endif

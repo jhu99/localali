@@ -219,6 +219,35 @@ int main(int argc, char** argv)
 			networks.initNetworkPool(myoption.networkfiles);
 			myformat.convertNetBlastProp(myoption.resultfolder,networks);
 		}
+		else if(myoption.task==11)
+		// generate 40*5 randomly connected PPI networks
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			networks.outputNetworks();
+		}
+		else if(myoption.task==12)
+		// generate randomly connected k-layer graphs
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			layergraph.read(myoption.layerfile,networks);
+			layergraph.generateRandKlayer(networks,myoption.resultfolder);
+		}
+		else if(myoption.task==13)
+		// convert ppi to mawish input
+		{
+			networks.initNetworkPool(myoption.networkfiles);
+			networks.outputMaWIShNetworks();
+		}
+		else if(myoption.task==14)
+		// format similarity to mawish format
+		{
+			networks.outputMaWIShSimilarity(myoption.resultfolder);
+		}
+		else if(myoption.task==15)
+		// format mawish html to alignments
+		{
+			myformat.convertMaWIShHtml(myoption.resultfolder);
+		}
 	}
 	else if(myparser.given("analyse"))
 	{
