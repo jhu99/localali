@@ -1,4 +1,4 @@
-#labels correction,paper
+#labels Featured
 #This is a page of the error corrections for the published paper. 
 =Corrections=
 ==From:== 
