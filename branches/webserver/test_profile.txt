@@ -1,0 +1,8 @@
+folder ../crosslink/dataset/intact10022014/test/
+species test1
+species test2
+species test3
+species test4
+species test5
+layers  test_blast.txt
+tree    tree.txt

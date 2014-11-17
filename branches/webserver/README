@@ -1,0 +1,225 @@
+################################################################################
+PROGRAM: LocalAli
+AUTHOR: Jialu Hu
+EMAIL: jialu.hu@fu-berlin.de
+
+Copyright (C) <2014>  <Jialu Hu>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+################################################################################
+Description
+This file is README file of the package of LocalAli developed by Jialu Hu.
+To guide you quickly starting to use our alignment tool, we structured this README into five parts:
+1) PREREQUISITE
+2) DOWNLOAD
+3) COMPILING
+4) OPTION
+5) EXAMPLES
+Before running this program, you are recommended to read this file carefully.
+For easy to explain, we denote $LOCALALI as the path to LocalAli folder.
+
+################################################################################
+PREREQUISITE
+1. LEMON Graph Library 1.2.3
+The source code is freely available under Boost Software License, Version 1.0 at the website: http://ftp.mi.fu-berlin.de/jhu/LocalAli/lemon-1.2.3.tar.gz
+Please first compile the lemon graph library before compiling the code of LocalAli.
+Note that this package should be moved to the directory $LOCALALI/include.
+2. GoTermFinder
+This package is necessary only if you want to use "-analyse" option to analyze the Gene Ontology enrichment of reported alignments.
+It can be download at http://search.cpan.org/dist/GO-TermFinder/lib/GO/TermFinder.pm.
+
+################################################################################
+DOWNLOAD
+1. Checkout the source code from the project's subversion repository
+svn checkout http://localali.googlecode.com/svn/trunk/ $LOCALALI
+
+2. Download datasets and lemon-1.2.3
+datsets: http://ftp.mi.fu-berlin.de/jhu/LocalAli/dataset.tar.gz
+lemon-1.2.3: http://ftp.mi.fu-berlin.de/jhu/LocalAli/lemon-1.2.3.tar.gz
+
+Download the datasets into the folder $LOCALALI and uncompress it with command:
+cd $LOCALALI
+tar -zxvf dataset.tar.gz
+Download lemon-1.2.3 into the folder $LOCALALI/include/ and uncompress it with command:
+cd $LOCALALI/include
+tar -zxvf lemon-1.2.3.tar.gz
+
+
+################################################################################
+COMPILING
+The compiler g++-4.6 as well as its higher variants is strongly recommended to compile the source code, but not limited to. Visual Studio 11 is also supported.
+The compilation should be done under Linux and Mac OS X with several simple commands as follows:
+
+1. Compile LEMON GRAPH LIBRARY
+
+cd $LOCALALI/include/lemon-1.2.3/
+./configure
+./make
+./make check (optional)
+./make install (optional)
+
+2. Compile LOCALALI
+
+cd $LOCALALI
+./make MODE=Release
+#If you want to compile it in Debug mode, run command:
+./make (MODE=Debug)
+#The binary code will be in the folder ./$LOCALALI after compilation.
+
+#if you want to compile it with other compilers such as g++-4.7, do it like this:
+./make MODE=Release CXX=g++-4.7
+
+
+################################################################################
+OPTION
+You can see the detailed option information with option "-h".
+It is noted that there are two options you must specify if you want to run LOCALALI for an alignment task. They are described as follows:
+
+1. -profile
+The default file is "./profile.txt", but you can also change the filename and path by "-profile" option.
+This file tells the program where to find the input files.
+It is expected to be in two-column tab-delimited format.
+These lines starting with "#" will be seen as comments.
+Each line has one keyword and one value, like this:
+$keyword	$value
+Using this file, you are allowed to set keywords (folder species layers tree) here.
+
+For example:
+
+--------------BEGIN OF PROFILE--------------
+folder ./dataset/3-way/
+species Celeg20130707
+species Dmela20130707
+species Scere20130707
+layers  input_blast.txt
+tree    tree.txt
+--------------END OF PROFILE--------------
+
+The specified filenames which are required by localali are:
+./dataset/3-way/Celeg201300707.txt
+./dataset/3-way/Dmela20130707.txt
+./dataset/3-way/Scere20130707.txt
+./dataset/3-way/input_blast.txt
+./dataset/3-way/tree.txt
+
+Interactions of each species are in three-column tab-delimited format (INTERACTOR_A INTERACTOR_B score) as follows (the third column is not necessary):
+--------------BEGIN OF NETWORK--------------
+O43521	Q07820	0.40
+P05556	P07948	0.43
+P05556	P13612	0.66
+P07948	P13612	0.43
+2609382	P40763	0.40
+P17947	Q15156	0.54
+--------------END OF NETWORK--------------
+
+The layered graph will be constructed through these homologous proteins (with evalue <1e-07). It looks as follows (the third column is not necessary):
+--------------BEGIN OF HOMOLOGY--------------
+P31946	Q20655	9e-146
+P31946	P41932	2e-137
+P62258	Q20655	5e-121
+P41932	P62258	5e-113
+Q04917	Q20655	9e-133
+P41932	Q04917	1e-126
+P61981	Q20655	2e-132
+P41932	P61981	8e-129
+P27348	Q20655	4e-138
+P27348	P41932	2e-132
+--------------END OF HOMOLOGY--------------
+
+2. other option in Usage
+
+Usage:
+  ./localali -version|-alignment|-analyse|-format [--help|-h|-help]
+     [-alpha num] [-beta num] [-extdist1 int] [-extdist2 int]
+     [-formatfile str] [-maxext int] [-method int] [-minext int]
+     [-numconnected int] [-numseeds int] [-numspecies int]
+     [-numspinetries int] [-numthreads int] [-parallel] [-profile str]
+     [-resultfolder str] [-score_threshold num] [-seedrep int]
+     [-seedsize int] [-seedtries int] [-task int] [-verbose int]
+Where:
+  --help|-h|-help
+     Print a short help message
+  -alignment
+     Execute the alignment algorithm.
+  -alpha num
+     Impact factor of the evolutionary rate. Default is 0.2
+  -analyse
+     Make analysis on the alignment results.
+  -beta num
+     The second impact factor of the evolutionary rate of interactions. Default is 2.0.
+  -extdist1 int
+     Distance of neighbors in the search for seeds. Default is 1.
+  -extdist2 int
+     Distance of neighbors in the search for subnets. Default is 2.
+  -format
+     Process input or output file into proper format.
+  -formatfile str
+     Input file which is used to analyse the quality of alignments.
+  -maxext int
+     Maximal number of the extension. Default is 12.
+  -method int
+     Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.
+  -minext int
+     Minimal number of the extension. Default is 11.
+  -numconnected int
+     Number of connected subnetwork. Default is 3.
+  -numseeds int
+     Number of refined seeds. Default is 200.
+  -numspecies int
+     Number of the species compared. Default is 3.
+  -numspinetries int
+     Number of tries for strongly connected spines. Default is 5.
+  -numthreads int
+     Number of threads. Default is 1.
+  -parallel
+     Run LocalAli in parallel if it is true. Default is false.
+  -profile str
+     Configuration of various input parameters. Default is "./profile.txt".
+  -resultfolder str
+     Configuration of various input parameters.
+  -score_threshold num
+     Score threshold of subnets which are qualified. Default is 0.2.
+  -seedrep int
+     Allow protein replicatioin in refined seeds. Default is 0.
+  -seedsize int
+     Size of the seeds. Default is 2.
+  -seedtries int
+     Number of tries for each refined seeds. Default is 1.
+  -task int
+     Specify the task of each method. Default is 0.
+  -verbose int
+     Display standard output levle:0-3. Default is 0.
+  -version
+     Show the version number.
+
+################################################################################
+EXAMPLES
+
+cd $LOCALALI
+mkdir ./result 
+# The alignment results will be in this folder.
+
+Perform LocalAli on a test alignment (human-worm-fly) with command:
+
+mkdir ./result/3-way
+mkdir ./result/3-way/alignments
+set the directory of the dataset in ./profile/profile_test.txt.
+./localali -alignment -parallel -numthreads 16 -numspinetries 20 -numspecies 3 -numseeds 2000 -score_threshold 0.3 -resultfolder ./result/3-way -seedtries 2 -minext 3 -maxext 13 -profile ./profile/profile_test.txt -verbose 1 -extdist1 2 -extdist2 2 -seedrep 1 
+
+
+################################################################################
+END
+THANKS FOR READING
+If you have any questions regarding to the program, please don't hesitate to contact us through email.

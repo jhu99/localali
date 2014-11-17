@@ -1,0 +1,6 @@
+# Please specify the directory where the dataset located in. 
+folder ../crosslink/dataset/intact10022014/2-way/37/
+species 3-fly7227
+species 7-ecoli562
+layers  input_blast.txt
+tree    tree.txt
