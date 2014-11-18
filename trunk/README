@@ -168,15 +168,15 @@ Where:
   -formatfile str
      Input file which is used to analyse the quality of alignments.
   -maxext int
-     Maximal number of the extension. Default is 12.
+     Maximal number of the extension. Default is 13.
   -method int
      Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.
   -minext int
-     Minimal number of the extension. Default is 11.
+     Minimal number of the extension. Default is 3.
   -numconnected int
      Number of connected subnetwork. Default is 3.
   -numseeds int
-     Number of refined seeds. Default is 200.
+     Number of refined seeds. Default is 400.
   -numspecies int
      Number of the species compared. Default is 3.
   -numspinetries int
@@ -192,7 +192,7 @@ Where:
   -score_threshold num
      Score threshold of subnets which are qualified. Default is 0.2.
   -seedrep int
-     Allow protein replicatioin in refined seeds. Default is 0.
+     Allow protein replicatioin in refined seeds. Default is false.
   -seedsize int
      Size of the seeds. Default is 2.
   -seedtries int
