@@ -61,7 +61,7 @@ typedef struct _Option
     numspecies=3;
     seedsize=2;
     seedtries=1;
-	minext=6;
+	minext=3;
 	maxext=13;
 	extdist1=1;
 	extdist2=2;
@@ -109,12 +109,12 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
 	.refOption("seedsize","Size of the seeds. Default is 2.", myoption.seedsize)
-	.refOption("minext","Minimal number of the extension. Default is 11.", myoption.minext)
-	.refOption("maxext","Maximal number of the extension. Default is 12.", myoption.maxext)
+	.refOption("minext","Minimal number of the extension. Default is 3.", myoption.minext)
+	.refOption("maxext","Maximal number of the extension. Default is 13.", myoption.maxext)
 	.refOption("extdist1","Distance of neighbors in the search for seeds. Default is 1.", myoption.extdist1)
 	.refOption("extdist2","Distance of neighbors in the search for subnets. Default is 2.", myoption.extdist2)
 	.refOption("numconnected","Number of connected subnetwork. Default is 3.", myoption.numconnected)
-	.refOption("numseeds","Number of refined seeds. Default is 200.", myoption.numseeds)
+	.refOption("numseeds","Number of refined seeds. Default is 400.", myoption.numseeds)
 	.refOption("numthreads","Number of threads. Default is 1.", myoption.numthreads)
 	.refOption("numspinetries","Number of tries for strongly connected spines. Default is 5.", myoption.numspinetries)
 	.refOption("score_threshold","Score threshold of subnets which are qualified. Default is 0.2.", myoption.score_threshold)
