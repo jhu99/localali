@@ -140,9 +140,9 @@ Layer_graphs<GR,NP>::read(std::string& filename,NetworkPool& networks)
   }
   if(g_verbosity>=VERBOSE_ESSENTIAL)
   {
-	std::cout <<"# "<<filename <<" has been read successfully!"<<std::endl;
-	std::cout <<"# of proteins:"<< nodeNum<<"\t"<<std::endl;
-	std::cout <<"# of interactions:"<< edgeNum <<std::endl;
+	std::cout <<"# "<<filename <<" has been read successfully!<br>"<<std::endl;
+	std::cout <<"# of proteins:"<< nodeNum<<"\t<br>"<<std::endl;
+	std::cout <<"# of homologous pairs:"<< edgeNum <<"<br>"<<std::endl;
   }
   return true;
 }

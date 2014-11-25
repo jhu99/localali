@@ -27,7 +27,7 @@ localalitmp: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
 	${CXX} ${CXXFLAGS} -o $@ $^ 
 
 move:
-	mv localalitmp localali
+	mv localalitmp /web/page.mi.fu-berlin.de/web-home/jhu/public_html/cgi-bin/localali.cgi
 
 #lemon: lemon-config lemon-make
 

@@ -975,7 +975,7 @@ void Search<NP,SN,LG,OP>::outsubgraphs(LayerGraph& layergraph,PrivateVariablePlu
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
 	{
 		std::cout << myPrivateVariablePlus.outnum<<"\t"<<myPrivateVariablePlus.sumDist << "\t"
-				<<myPrivateVariablePlus.phylogeny._dsize <<"\t"<< myPrivateVariablePlus.overallScore << "\t" << _numSpecies << std::endl;
+				<<myPrivateVariablePlus.phylogeny._dsize <<"\t"<< myPrivateVariablePlus.overallScore << "\t" << _numSpecies <<"<br>"<< std::endl;
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	{
@@ -1017,11 +1017,11 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	}
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
 	{
-		std::cout <<"# Number of refined seeds:" << csize << std::endl;
-		std::cout <<"# Seed size: " << _seedSize << std::endl;
-		std::cout <<"# Seeds tries: " << _seedTries <<std::endl;
-		std::cout <<"# Min subnet:" << _seedSize+_minExt << std::endl;
-		std::cout <<"# Max subnet:" << _seedSize+_maxExt << std::endl;
+		std::cout <<"# Number of refined seeds:" << csize <<"<br>"<< std::endl;
+		std::cout <<"# Seed size: " << _seedSize <<"<br>"<< std::endl;
+		std::cout <<"# Seeds tries: " << _seedTries <<"<br>"<<std::endl;
+		std::cout <<"# Min subnet:" << _seedSize+_minExt <<"<br>"<< std::endl;
+		std::cout <<"# Max subnet:" << _seedSize+_maxExt <<"<br>" << std::endl;
 	}
 	MyTree localtree;
 	PrivateVariable myPrivateVariable(layergraph.validnodes.size()-1);
@@ -1055,9 +1055,9 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	}
 	if(g_verbosity>=VERBOSE_ESSENTIAL)
 	{
-		std::cout <<"# Number of subnets:" << csize << std::endl;
+		std::cout <<"# Number of subnets:" << csize <<"<br>"<< std::endl;
 		//std::cout << "Threshold: " << _score_threshold << std::endl;
-		std::cout <<"# Subnet\tTree_Distance\tKSpine\tScore\tSpecies"<<std::endl;
+		std::cout <<"# Subnet\tTree_Distance\tKSpine\tScore\tSpecies<br>"<<std::endl;
 	}
 
 	PrivateVariablePlus myPrivateVariablePlus;
@@ -1094,7 +1094,7 @@ Search<NP,SN,LG,OP>::run(LayerGraph& layergraph,NetworkPool& networks)
 	}
 	if(g_verbosity>=VERBOSE_NON_ESSENTIAL)
 	{
-		std::cout << "# Number of Alignments: " << outnum << std::endl;
+		std::cout << "# Number of Alignments: " << outnum <<"<br>"<< std::endl;
 	}
 	if(g_verbosity>=VERBOSE_NONE)
 	{
@@ -1120,7 +1120,7 @@ void
 			if(!interfere(myPrivateVariable,localtree))continue;// unsafe for example sumup();
 			myPrivateVariable.sampledata=myPrivateVariable.distribution(myPrivateVariable.generator);
 			if(g_verbosity>=VERBOSE_DEBUG)
-				std::cout <<myPrivateVariable.deltaData.delta <<"\t" << myPrivateVariable.sampledata<<"\t"<< exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta) <<"\n";
+				std::cout <<myPrivateVariable.deltaData.delta <<"\t" << myPrivateVariable.sampledata<<"\t"<< exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta) <<"<br>\n";
 			myPrivateVariable.finderFlag=false;
 			omp_set_lock(&myLock);
 			if(myPrivateVariable.deltaData.delta<0 || myPrivateVariable.sampledata < exp(myPrivateVariable.beta*myPrivateVariable.deltaData.delta))
