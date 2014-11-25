@@ -247,10 +247,10 @@ bool NetworkPool<GR,BP>::readNetwork(std::string &filename,short i)
   }
   if(g_verbosity>=VERBOSE_NONE)
   {
-    std::cout <<"# " <<filename <<" has been read successfully!"<<std::endl;
-    std::cout <<"# number of proteins:"<< data->nodeNum <<"\t"<<std::endl;
-    std::cout <<"# number of interactions:"<<data->edgeNum<<std::endl;
-    std::cout <<"# the largest degree:"<< maxNode << std::endl;
+    std::cout <<"# " <<filename <<" has been read successfully!<br>"<<std::endl;
+    std::cout <<"# number of proteins:"<< data->nodeNum <<"<br>"<<std::endl;
+    std::cout <<"# number of interactions:"<<data->edgeNum<<"<br>"<<std::endl;
+    std::cout <<"# the largest degree:"<< maxNode <<"<br>"<< std::endl;
   }
   allNodeNum+=data->nodeNum;
   return 1;
