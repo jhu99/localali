@@ -1,5 +1,5 @@
 OS = $(shell uname -s)
-CXX = g++-4.6
+#CXX = g++-4.6
 DEBUG = yes
 
 # Default mode is "Debug"
@@ -21,7 +21,7 @@ else
 	CXXFLAGS = -Wall -O3 -ffast-math -fcaller-saves -finline-functions -fopenmp -std=c++0x -DNDEBUG -I$(LEMON)/ -Isrc/
 endif
 
-all: localalitmp move
+all: localalitmp 
 
 localalitmp: src/main.cpp src/verbose.o $(LEMON)/lemon/arg_parser.o
 	${CXX} ${CXXFLAGS} -o $@ $^ 

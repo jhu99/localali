@@ -86,13 +86,13 @@ void Output_html<Option>::get_data(Option& myoption)
 	
 	for(int i=0;i<num;i++)
 	{
-		std::string ppifilename="../../data-rw/uploadfiles/";
+		std::string ppifilename="/var/www/html/mnetali/data-rw/uploadfiles/";
 		ppifilename.append(jobid);ppifilename.append("/ppi");
 		ppifilename.append(convert_num2str(i));
 		ppifilename.append(".txt");
 		myoption.networkfiles.push_back(ppifilename);
 	}
-	myoption.layerfile="../../data-rw/uploadfiles/";
+	myoption.layerfile="/var/www/html/mnetali/data-rw/uploadfiles/";
 	myoption.layerfile.append(jobid);
 	myoption.treefile=myoption.layerfile;
 	myoption.resultfolder=myoption.layerfile;

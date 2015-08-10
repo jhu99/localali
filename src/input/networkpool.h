@@ -180,7 +180,7 @@ bool NetworkPool<GR,BP>::readNetwork(std::string &filename,short i)
   std::ifstream input(filename.c_str());
   if(!input.good())
   {
-    std::cerr << filename <<" cannot be opened!"<<std::endl;
+    std::cout << filename <<" cannot be opened!"<<std::endl;
     return 0;
   }
   _graphSet.push_back(data);
