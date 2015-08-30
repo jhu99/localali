@@ -74,7 +74,7 @@ public:
     double _score_threshold;
     double _alpha;
     double _beta;
-	std::string _resultfolder;
+	std::string _resultfloder;
 	std::string _treefile;
 	std::vector<std::string> _speciesfiles;
 	int _seedRep;
@@ -264,7 +264,7 @@ Search<NP,SN,LG,OP>::Search(Option& myoption)
 	_maxExt=myoption.maxext;
 	_extDist1=myoption.extdist1;
 	_extDist2=myoption.extdist2;
-	_resultfolder=myoption.resultfolder;
+	_resultfloder=myoption.resultfloder;
 	_numthreads=myoption.numthreads;
 	_treefile=myoption.treefile;
 	_speciesfiles=myoption.speciesfiles;
@@ -958,7 +958,7 @@ template<typename NP, typename SN, typename LG, typename OP>
 void Search<NP,SN,LG,OP>::output(LayerGraph& layergraph,PrivateVariablePlus& myPrivateVariablePlus,std::ofstream& fout)
 {
 	myPrivateVariablePlus.element.clear();
-	myPrivateVariablePlus.element.append(_resultfolder);
+	myPrivateVariablePlus.element.append(_resultfloder);
 	myPrivateVariablePlus.element.append("alignments/ucomplex_");
 	myPrivateVariablePlus.element.append(convert_num2str(myPrivateVariablePlus.outnum));
 	myPrivateVariablePlus.element.append(".txt");

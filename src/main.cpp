@@ -29,7 +29,7 @@ typedef struct _Option
   vector<std::string> speciesfiles;
   vector<std::string> networkfiles;
   std::string layerfile;
-  std::string resultfolder;
+  std::string resultfloder;
   std::string profile;
   std::string treefile;
   std::string alignmentfile;
@@ -104,7 +104,7 @@ bool setParser(ArgParser& parser, Option& myoption)
 	.refOption("task","Specify the task of each method. Default is 0.", myoption.task)
 	.refOption("method","Specify the method used for verification. LocalAli 1, NetworkBlastM 2. Default is 1.", myoption.method)
 	.refOption("profile","Configuration of various input parameters. Default is \"./profile.txt\".", myoption.profile)
-	.refOption("resultfolder","Configuration of various input parameters.", myoption.resultfolder)
+	.refOption("resultfloder","Configuration of various input parameters.", myoption.resultfloder)
 	.refOption("formatfile","Input file which is used to analyse the quality of alignments.",myoption.formatfile)
 	.refOption("numspecies","Number of the species compared. Default is 3.", myoption.numspecies)
 	.refOption("seedtries","Number of tries for each refined seeds. Default is 1.", myoption.seedtries)
@@ -212,12 +212,12 @@ int main(int argc, char** argv)
 		else if(myoption.task==9)
 		{
 			networks.initNetworkPool(myoption.networkfiles);
-			myformat.convertAlignNemoNif(myoption.resultfolder,networks);
+			myformat.convertAlignNemoNif(myoption.resultfloder,networks);
 		}
 		else if(myoption.task==10)
 		{
 			networks.initNetworkPool(myoption.networkfiles);
-			myformat.convertNetBlastProp(myoption.resultfolder,networks);
+			myformat.convertNetBlastProp(myoption.resultfloder,networks);
 		}
 		else if(myoption.task==11)
 		// generate 40*5 randomly connected PPI networks
@@ -230,7 +230,7 @@ int main(int argc, char** argv)
 		{
 			networks.initNetworkPool(myoption.networkfiles);
 			layergraph.read(myoption.layerfile,networks);
-			layergraph.generateRandKlayer(networks,myoption.resultfolder);
+			layergraph.generateRandKlayer(networks,myoption.resultfloder);
 		}
 		else if(myoption.task==13)
 		// convert ppi to mawish input
@@ -241,40 +241,40 @@ int main(int argc, char** argv)
 		else if(myoption.task==14)
 		// format similarity to mawish format
 		{
-			networks.outputMaWIShSimilarity(myoption.resultfolder);
+			networks.outputMaWIShSimilarity(myoption.resultfloder);
 		}
 		else if(myoption.task==15)
 		// format mawish html to alignments
 		{
-			myformat.convertMaWIShHtml(myoption.resultfolder);
+			myformat.convertMaWIShHtml(myoption.resultfloder);
 		}
 	}
 	else if(myparser.given("analyse"))
 	{
-		MyAnalyse myanalyse(myoption.resultfolder);
+		MyAnalyse myanalyse(myoption.resultfloder);
 		if(myoption.task==0)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant subnetworks;
 		{
 			myanalyse.readIdMap();
-			myanalyse.translate(myoption.resultfolder,myoption.numspecies);
+			myanalyse.translate(myoption.resultfloder,myoption.numspecies);
 			// use gotermfinder-local.sh to calculate p-value of each subnetwork;
 		}
 		else if(myoption.task==1)
 		// Assess the quality of subnetworks;
 		{
-			myanalyse.assessQuality(myoption.resultfolder,myoption.numspecies);
+			myanalyse.assessQuality(myoption.resultfloder,myoption.numspecies);
 		}
 		else if(myoption.task==2)
 		// translate DIP subnetworks to Uniprot subnetworks and remove redundant alignments;
 		{
 			networks.initNetworkPool(myoption.networkfiles);
 			//myanalyse.readIdMap();
-			//myanalyse.translate_alignment(networks, myoption.resultfolder,myoption.numspecies);
-			myanalyse.reduceRedundancy(networks, myoption.resultfolder,myoption.numspecies);
+			//myanalyse.translate_alignment(networks, myoption.resultfloder,myoption.numspecies);
+			myanalyse.reduceRedundancy(networks, myoption.resultfloder,myoption.numspecies);
 			std::cout << "The percentage of covered proteins: " << myanalyse.numCoveredProtein/static_cast<float>(networks.allNodeNum) << std::endl;
 		}else if(myoption.task==3)
 		{
-			myanalyse.predictFunction(myoption.resultfolder,myoption.numspecies);
+			myanalyse.predictFunction(myoption.resultfloder,myoption.numspecies);
 			myanalyse.countPrediction(myoption.formatfile);
 		}
 		else if(myoption.task==4)
@@ -283,11 +283,11 @@ int main(int argc, char** argv)
 		}
 		else if(myoption.task==5)
 		{
-			myanalyse.countCrossVerification(myoption.resultfolder, myoption.method);
+			myanalyse.countCrossVerification(myoption.resultfloder, myoption.method);
 		}
 		else if(myoption.task==6)
 		{
-			myanalyse.verifyPrediction(myoption.resultfolder);
+			myanalyse.verifyPrediction(myoption.resultfloder);
 		}
 		else if(myoption.task==7)
 		{
@@ -295,11 +295,11 @@ int main(int argc, char** argv)
 		}
 		else if(myoption.task==8)
 		{
-			myanalyse.timecheck(myoption.resultfolder);
+			myanalyse.timecheck(myoption.resultfloder);
 		}
 		else if(myoption.task==9)
 		{
-			myanalyse.ppvcheck(myoption.resultfolder);
+			myanalyse.ppvcheck(myoption.resultfloder);
 		}
 	}
 	t.stop();

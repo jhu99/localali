@@ -39,10 +39,10 @@ Alignment::Alignment()
 }
 
 
-void Alignment::readAlignment(std::string folder, std::string filename, int numspecies)
+void Alignment::readAlignment(std::string floder, std::string filename, int numspecies)
 {
 	alignmentfile=filename;
-	filename=folder;filename.append("alignments/");filename.append(alignmentfile);
+	filename=floder;filename.append("alignments/");filename.append(alignmentfile);
 	std::ifstream input(filename);
 	if(!input.is_open())
 	{
@@ -83,7 +83,7 @@ void Alignment::readAlignment(std::string folder, std::string filename, int nums
 
 
 void Alignment::writeAlignmentFile(//NetworkType& networks,
-									std::string folder,
+									std::string floder,
 									int numspecies,
 									std::unordered_map<std::string,std::string>& idmap,
 									std::unordered_map<std::string,int>& coveredProteinMap)
@@ -93,7 +93,7 @@ void Alignment::writeAlignmentFile(//NetworkType& networks,
 	std::string line,start,ss,protein,outfilename,infilename;
 	float score;
 	std::vector<ProteinList*> subnetworks;
-	infilename.append(folder);infilename.append("alignments/");infilename.append(alignmentfile);
+	infilename.append(floder);infilename.append("alignments/");infilename.append(alignmentfile);
 	std::ifstream input(infilename);
 	if(!input.is_open())
 	{
@@ -134,7 +134,7 @@ void Alignment::writeAlignmentFile(//NetworkType& networks,
 	for(int i=0; i<numspecies; i++)
 	{
 		outfilename.clear();
-		outfilename.append(folder);
+		outfilename.append(floder);
 		outfilename.append("species_");
 		outfilename.append(convert_num2str(i));
 		outfilename.append("/");

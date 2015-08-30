@@ -173,14 +173,14 @@ SubNet<NP,LG>::~SubNet()
 
 template<typename NP, typename LG>
 void
-SubNet<NP,LG>::outputSubgraphs(LayerGraph& layergraph,std::string& folder,int seednum,int extnum,int triesnum)
+SubNet<NP,LG>::outputSubgraphs(LayerGraph& layergraph,std::string& floder,int seednum,int extnum,int triesnum)
 {
 	std::string filename;
 	std::ofstream fout;
 	GraphData* graphdata;
 	for(unsigned i=0;i<subgraphs.size();i++)
 	{
-		filename=folder;
+		filename=floder;
 		filename.append("species_");
 		filename.append(convert_num2str(i));
 		filename.append("/complex_s");
@@ -229,9 +229,9 @@ SubNet<NP,LG>::output(LayerGraph& layergraph,std::ofstream& fout)
 
 template<typename NP, typename LG>
 void
-SubNet<NP,LG>::outputAlignment(float overallscore,LayerGraph& layergraph,std::string& folder,int seednum,int extnum,int triesnum)
+SubNet<NP,LG>::outputAlignment(float overallscore,LayerGraph& layergraph,std::string& floder,int seednum,int extnum,int triesnum)
 {
-	std::string filename(folder);
+	std::string filename(floder);
 	filename.append("alignments/ucomplex_s");
 	filename.append(convert_num2str(seednum));
 	filename.append("_e");
@@ -242,7 +242,7 @@ SubNet<NP,LG>::outputAlignment(float overallscore,LayerGraph& layergraph,std::st
 	std::ofstream fout(filename.c_str());
 	fout <<"#Score:"<<overallscore<<std::endl;
 	output(layergraph,fout);
-	outputSubgraphs(layergraph,folder,seednum,extnum,triesnum);
+	outputSubgraphs(layergraph,floder,seednum,extnum,triesnum);
 	fout.close();
 }
 

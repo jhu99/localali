@@ -19,12 +19,12 @@ class Module
 private:
 	enum Category {P,C,F};
 public:
-	Module(std::string folder)
+	Module(std::string floder)
 	{
-		resultFolder=folder;
+		resultFloder=floder;
 	};
 	~Module(){};
-	std::string resultFolder;
+	std::string resultFloder;
 	std::unordered_map<std::string,bool> consideredProteins;
 	std::unordered_map<std::string,bool> unconsideredProteins;
 

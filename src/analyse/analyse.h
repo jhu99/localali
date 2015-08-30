@@ -30,7 +30,7 @@ public:
 	Analyse(std::string);
 	~Analyse(){};
 	int numCoveredProtein;
-	std::string resultFolder;
+	std::string resultFloder;
 	std::unordered_map<std::string,std::string> protein_dip_uniprot_map;
 	std::unordered_map<std::string,int> coveredProteinMap;
 	std::vector<Subnetwork*> sublist;
@@ -68,9 +68,9 @@ public:
 };
 
 template<typename NetworkPoolType>
-Analyse<NetworkPoolType>::Analyse(std::string resultfolder)
+Analyse<NetworkPoolType>::Analyse(std::string resultfloder)
 {
-	resultFolder=resultfolder;
+	resultFloder=resultfloder;
 }
 
 template<typename NetworkPoolType>
@@ -97,10 +97,10 @@ void Analyse<NetworkPoolType>::readIdMap()
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::timecheck(std::string folder)
+void Analyse<NetworkPoolType>::timecheck(std::string floder)
 {
 	std::string line,subline,filename,pattern;
-	filename.append(folder);
+	filename.append(floder);
 	std::ifstream input(filename.c_str());
 	float elapsed_time;
 	std::vector<float> all_elapsed_time;
@@ -122,11 +122,11 @@ void Analyse<NetworkPoolType>::timecheck(std::string folder)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::ppvcheck(std::string folder)
+void Analyse<NetworkPoolType>::ppvcheck(std::string floder)
 {
 	std::string line,filename,pattern, head;
 	int numsample;
-	filename.append(folder);
+	filename.append(floder);
 	std::ifstream input(filename.c_str());
 	float elapsed_time;
 	std::vector<float> all_elapsed_time;
@@ -161,7 +161,7 @@ void Analyse<NetworkPoolType>::ppvcheck(std::string folder)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
+void Analyse<NetworkPoolType>::verifyPrediction(std::string floder)
 {
 	std::string filename1,filename2,filename3,commandline,parameter;
 	GoList golist;
@@ -177,8 +177,8 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 		ancestormap[line]=true;
 	}
 	inputlist.close();
-	filename1.clear();filename1.append(folder);filename1.append("function_prediction.txt");
-	filename2.clear();filename2.append(folder);filename2.append("verify_prediction.txt");
+	filename1.clear();filename1.append(floder);filename1.append("function_prediction.txt");
+	filename2.clear();filename2.append(floder);filename2.append("verify_prediction.txt");
 	std::ifstream input(filename1);
 	std::ofstream output(filename2,std::ofstream::out);
 	
@@ -221,10 +221,10 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 				}*/
 				parameter.append(filename3);
 				parameter.append(" > ");
-				parameter.append(folder); parameter.append("gotree.txt");
+				parameter.append(floder); parameter.append("gotree.txt");
 				commandline.clear();commandline.append("cat ");commandline.append(parameter);
 				system(commandline.c_str());
-				filename3.clear();filename3.append(folder);filename3.append("gotree.txt");
+				filename3.clear();filename3.append(floder);filename3.append("gotree.txt");
 				inputlist.open(filename3);
 				std::string line_gotree;
 				while(std::getline(inputlist,line))
@@ -254,12 +254,12 @@ void Analyse<NetworkPoolType>::verifyPrediction(std::string folder)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::countCrossVerification(std::string folder,int methods)
+void Analyse<NetworkPoolType>::countCrossVerification(std::string floder,int methods)
 {
 	std::vector<CrossVerification> cvList;
 	for(int i=0;i<10;i++)
 	{
-		std::string filename=folder;
+		std::string filename=floder;
 
 		filename.append("2a-way_");
 		filename.append(convert_num2str(i));
@@ -267,7 +267,7 @@ void Analyse<NetworkPoolType>::countCrossVerification(std::string folder,int met
 			for(int j=1;j<=20;j++)
 			{
 				CrossVerification cv;
-				filename.clear();filename.append(folder);filename.append("2a-way_");filename.append(convert_num2str(i));
+				filename.clear();filename.append(floder);filename.append("2a-way_");filename.append(convert_num2str(i));
 				filename.append("/sample_");filename.append(convert_num2str(j));filename.append("/verify_prediction.txt");
 				countVerification(filename,cv);
 				cvList.push_back(cv);
@@ -368,11 +368,11 @@ void Analyse<NetworkPoolType>::countPrediction(std::string formatfile)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::translate(std::string folder, int speciesnum)
+void Analyse<NetworkPoolType>::translate(std::string floder, int speciesnum)
 {
 	std::vector<std::string> filelist;
 	std::string filename1,filename2;
-	filename1.append(folder);
+	filename1.append(floder);
 	filename1.append("filenames.txt");
 	std::ifstream input(filename1.c_str());
 	std::string item;
@@ -387,9 +387,9 @@ void Analyse<NetworkPoolType>::translate(std::string folder, int speciesnum)
 	{
 		for(unsigned i=0;i<filelist.size();i++)
 		{
-			filename1.clear();filename1.append(folder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
+			filename1.clear();filename1.append(floder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
 			filename1.append(filelist[i]);filename1.append(".txt");
-			filename2.clear();filename2.append(folder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
+			filename2.clear();filename2.append(floder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
 			filename2.append(filelist[i]);filename2.append("_genelist.txt");
 			Subnetwork* sub=new Subnetwork();
 			sub->readsubnetwork(filename1,filename2);
@@ -418,12 +418,12 @@ void Analyse<NetworkPoolType>::translate(std::string folder, int speciesnum)
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::string folder, int speciesnum)
+void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::string floder, int speciesnum)
 // translate alignment to individual species without the reduce of redundance.
 {
 	std::vector<std::string> filelist;
 	std::string filename1,filename2;
-	filename1.append(folder);
+	filename1.append(floder);
 	filename1.append("alignmentfiles.txt");
 	std::ifstream input(filename1.c_str());
 	std::string item;
@@ -436,15 +436,15 @@ void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::s
 	{
 		filename2=filelist[i];
 		Alignment *myalignment=new Alignment();
-		myalignment->readAlignment(folder, filename2, speciesnum);
+		myalignment->readAlignment(floder, filename2, speciesnum);
 		alignmentlist.push_back(myalignment);
 	}
 	//std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
 	for(std::vector<Alignment*>::iterator it1=alignmentlist.begin();it1!=alignmentlist.end();++it1)
 	{
 //		std::vector<Alignment*>::iterator it2=it1+1;
-		writeAlignmentFile(networks,*it1,folder,speciesnum);
-		//(*it1)->writeAlignmentFile(folder,speciesnum, protein_dip_uniprot_map,coveredProteinMap);
+		writeAlignmentFile(networks,*it1,floder,speciesnum);
+		//(*it1)->writeAlignmentFile(floder,speciesnum, protein_dip_uniprot_map,coveredProteinMap);
 		// write subnetworks for it1;
 		/*while(it2!=alignmentlist.end())
 		{
@@ -463,13 +463,13 @@ void Analyse<NetworkPoolType>::translate_alignment(NetworkType& networks, std::s
 template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 												  Alignment* pAlignment,
-												  std::string folder,
+												  std::string floder,
 												  int numspecies)
 {
 	typedef std::unordered_map<std::string, bool> ProteinList;
 	typedef ProteinList::iterator Iter;
 	std::string line,start,ss,score,protein,infilename,outfilename;
-	infilename.append(folder);infilename.append("alignments/");
+	infilename.append(floder);infilename.append("alignments/");
 	infilename.append(pAlignment->alignmentfile);
 	std::vector<ProteinList*> subnetworks;
 	std::ifstream input(infilename);
@@ -514,7 +514,7 @@ void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 	for(int i=0; i<numspecies; i++)
 	{
 		outfilename.clear();
-		outfilename.append(folder);
+		outfilename.append(floder);
 		outfilename.append("species_");
 		outfilename.append(convert_num2str(i));
 		outfilename.append("/");
@@ -542,11 +542,11 @@ void Analyse<NetworkPoolType>::writeAlignmentFile(NetworkType& networks,
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::string folder, int speciesnum)
+void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::string floder, int speciesnum)
 {
 	std::vector<std::string> filelist;
 	std::string filename1,filename2;
-	filename1.append(folder);
+	filename1.append(floder);
 	filename1.append("alignmentfiles.txt");
 	std::ifstream input(filename1.c_str());
 	std::string item;
@@ -559,7 +559,7 @@ void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::strin
 	{
 		filename2=filelist[i];
 		Alignment *myalignment=new Alignment();
-		myalignment->readAlignment(folder, filename2, speciesnum);
+		myalignment->readAlignment(floder, filename2, speciesnum);
 		alignmentlist.push_back(myalignment);
 	}
 	std::stable_sort(alignmentlist.begin(),alignmentlist.end(),compare_ali);
@@ -567,7 +567,7 @@ void Analyse<NetworkPoolType>::reduceRedundancy(NetworkType& networks,std::strin
 	{
 		std::vector<Alignment*>::iterator it2=it1+1;
 		//if((*it1)->score < 0.5) break;
-		writeAlignmentFile(networks,*it1,folder,speciesnum);
+		writeAlignmentFile(networks,*it1,floder,speciesnum);
 		while(it2!=alignmentlist.end())
 		{
 			if(checkRedundanteAli(*it1,*it2))
@@ -633,11 +633,11 @@ bool Analyse<NetworkPoolType>::checkRedundante(Subnetwork* sub1, Subnetwork* sub
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::removeRedundant(std::string folder, int speciesnum)
+void Analyse<NetworkPoolType>::removeRedundant(std::string floder, int speciesnum)
 {
 	std::vector<std::string> filelist;
 	std::string filename1,filename2;
-	filename1.append(folder);
+	filename1.append(floder);
 	filename1.append("filenames.txt");
 	std::ifstream input1(filename1.c_str());
 	std::ifstream input2(filename2.c_str());
@@ -653,23 +653,23 @@ void Analyse<NetworkPoolType>::removeRedundant(std::string folder, int speciesnu
 	{
 		for(unsigned i=0;i<filelist.size();i++)
 		{
-			filename1.clear();filename1.append(folder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
+			filename1.clear();filename1.append(floder);filename1.append("species_");filename1.append(convert_num2str(k));filename1.append("/");
 			filename1.append(filelist[i]);filename1.append(".txt");
-			filename2.clear();filename2.append(folder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
+			filename2.clear();filename2.append(floder);filename2.append("species_");filename2.append(convert_num2str(k));filename2.append("/");
 			filename2.append(filelist[i]);filename2.append(".txt");
 		}
 	}
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::predictFunction(std::string folder,int speciesnum)
+void Analyse<NetworkPoolType>::predictFunction(std::string floder,int speciesnum)
 {
 	std::string filename,item;
 	std::ifstream input,ingolist;
 	std::vector<std::string> filelist;
 	std::unordered_map<std::string,bool> ancestormap;
-	resultFolder=folder;
-	filename=folder;filename.append("function_prediction.txt");
+	resultFloder=floder;
+	filename=floder;filename.append("function_prediction.txt");
 	std::ofstream output(filename.c_str());
 	ingolist.open("/home/mi/jhu/projects/crosslink/dataset/goancestors/list.txt");
 	while(std::getline(ingolist,item))
@@ -679,7 +679,7 @@ void Analyse<NetworkPoolType>::predictFunction(std::string folder,int speciesnum
 	ingolist.close();
 	for(int k=0;k<speciesnum;k++)
 	{
-		filename.clear();filename.append(folder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
+		filename.clear();filename.append(floder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
 		input.open(filename.c_str());
 		filelist.clear();
 		while (std::getline(input,item))
@@ -711,7 +711,7 @@ void Analyse<NetworkPoolType>::parseTermFile(std::ifstream& input, std::unordere
 {
 	std::string line;
 	int signal=0,myindex=0;
-	Module mymodule(resultFolder);
+	Module mymodule(resultFloder);
 	while(std::getline(input,line))
 	{
 		if(line.compare("The following gene(s) will be considered:")==0)
@@ -753,7 +753,7 @@ void Analyse<NetworkPoolType>::parseTermFile(std::ifstream& input, std::unordere
 }
 
 template<typename NetworkPoolType>
-void Analyse<NetworkPoolType>::assessQuality(std::string folder,int speciesnum)
+void Analyse<NetworkPoolType>::assessQuality(std::string floder,int speciesnum)
 {
 	std::string filename;
 	int numDiscovered,numCoherent;
@@ -767,7 +767,7 @@ void Analyse<NetworkPoolType>::assessQuality(std::string folder,int speciesnum)
 	for(int k=0;k<speciesnum;k++)
 	{
 		std::unordered_map<std::string,bool> go_category;
-		filename.clear();filename.append(folder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
+		filename.clear();filename.append(floder);filename.append("species_");filename.append(convert_num2str(k));filename.append("/termfile.txt");
 		input1.open(filename.c_str());
 		filelist.clear();
 		while (std::getline(input1,item))
@@ -867,7 +867,7 @@ inline void Analyse<NetworkPoolType>::verifyComplexes(std::string complexfilenam
 
 template<typename NetworkPoolType>
 void Analyse<NetworkPoolType>::readNonredundantComplexes(Complex& mycomplex) {
-	std::string filename=resultFolder,line;
+	std::string filename=resultFloder,line;
 	filename.append("nonredundantfiles.txt");
 	std::vector<std::string> filelist;
 	std::ifstream input(filename);

@@ -78,13 +78,13 @@ void Format<NetworksType,MyOption>::generateAlignNemoSim(std::string inputfilena
 }
 
 template<typename NetworksType,typename MyOption>
-void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder,NetworksType& networks)
+void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfloder,NetworksType& networks)
 {
 	std::string summaryFilename,line,nodeline,
 		alignmentfile,filename,alignmentNodeString,protein1,protein2;
 	int numNode;
 	double alignmentScore;
-	summaryFilename.append(resultfolder);
+	summaryFilename.append(resultfloder);
 	summaryFilename.append("results_summary.txt");
 	std::ifstream input(summaryFilename.c_str());
 	std::ofstream output1;
@@ -94,11 +94,11 @@ void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder
 	while(std::getline(input,line))
 	{
 		std::stringstream linestream(line);
-		alignmentfile.clear();alignmentfile.append(resultfolder);
+		alignmentfile.clear();alignmentfile.append(resultfloder);
 		linestream >> filename >> numNode >> alignmentScore;
 		alignmentfile.append(filename);
 		inputAlignment.open(alignmentfile.c_str());
-		filename1.clear();filename1.append(resultfolder);
+		filename1.clear();filename1.append(resultfloder);
 		filename1.append("alignments/");filename1.append(filename);
 		output1.open(filename1.c_str());
 		output1 << "#score:\t" << alignmentScore << std::endl;
@@ -117,10 +117,10 @@ void Format<NetworksType,MyOption>::convertAlignNemoNif(std::string resultfolder
 }
 
 template<typename NetworksType,typename MyOption>
-void Format<NetworksType,MyOption>::convertMaWIShHtml(std::string resultfolder)
+void Format<NetworksType,MyOption>::convertMaWIShHtml(std::string resultfloder)
 {
 	std::string inputname,outputname,line,protein1,protein2;
-	inputname.append(resultfolder);	inputname.append("alignment.html");
+	inputname.append(resultfloder);	inputname.append("alignment.html");
 	std::ifstream inputfile(inputname.c_str());
 	int alignmentNum=0;
 	std::ofstream outputfile;
@@ -134,7 +134,7 @@ void Format<NetworksType,MyOption>::convertMaWIShHtml(std::string resultfolder)
 		{
 			alignmentNum++;
 			outputname.clear();
-			outputname.append(resultfolder);
+			outputname.append(resultfloder);
 			outputname.append("alignments/ucomplex_");
 			outputname.append(convert_num2str(alignmentNum));
 			outputname.append(".txt");
@@ -158,16 +158,16 @@ void Format<NetworksType,MyOption>::convertMaWIShHtml(std::string resultfolder)
 }
 
 template<typename NetworksType,typename MyOption>
-void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfolder, NetworksType& networks)
+void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfloder, NetworksType& networks)
 {
 	typedef std::vector<std::string> ProteinList;
 	std::array<ProteinList*, NUM_COMPLEXES> complexes;
 	std::array<float, NUM_COMPLEXES> complexesscore;
 	std::string alignmentfile,line,protein1,protein2,filename1,filename2;
-	alignmentfile.append(resultfolder);
+	alignmentfile.append(resultfloder);
 	alignmentfile.append("output-network.prop");
-	filename1.append(resultfolder);
-	filename2.append(resultfolder);
+	filename1.append(resultfloder);
+	filename2.append(resultfloder);
 	filename1.append("output-score.txt");
 	std::ifstream input(alignmentfile.c_str());
 	std::ofstream output1,output2;
@@ -215,7 +215,7 @@ void Format<NetworksType,MyOption>::convertNetBlastProp(std::string resultfolder
 	input1.close();
 	for(int i=1;i<=maxid;i++)
 	{
-		filename1.clear();filename1.append(resultfolder);filename1.append("alignments/ucomplex_");
+		filename1.clear();filename1.append(resultfloder);filename1.append("alignments/ucomplex_");
 		filename1.append(convert_num2str(i));filename1.append(".txt");
 		output1.open(filename1.c_str());
 		output1 << "#score:\t" << complexesscore[i] << std::endl;
@@ -496,7 +496,7 @@ void Format<NetworksType,MyOption>::writeSubnetworks(MyOption& myoption)
 {
 	std::string filename,filename1,filename2,line;
 	std::vector<std::string> filelist;
-	filename.append(myoption.resultfolder);
+	filename.append(myoption.resultfloder);
 	filename.append("alignmentfiles.txt");
 	std::ifstream input(filename);
 	if(!input.is_open())
@@ -512,7 +512,7 @@ void Format<NetworksType,MyOption>::writeSubnetworks(MyOption& myoption)
 	}
 	for(unsigned i=0;i<filelist.size();i++)
 	{
-		writeAlignmentFile(filelist[i],myoption.resultfolder);
+		writeAlignmentFile(filelist[i],myoption.resultfloder);
 	}
 }
 
